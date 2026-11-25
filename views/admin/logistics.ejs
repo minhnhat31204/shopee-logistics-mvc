@@ -1,0 +1,789 @@
+<%- include('admin-layout-top') %>
+
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-3">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900">Quản Trị Tồn Kho & Logistics FEFO (Trọng Tâm Chủ Đề 7)</h2>
+        <p class="text-xs text-gray-500">Giám sát tổng hợp tồn kho định vị kệ Aisle-Rack-Shelf-Bin, cất hàng vào kệ và kiểm toán biến động tồn kho PL/SQL.</p>
+    </div>
+    <div class="flex items-center space-x-2">
+        <a href="/admin/warehouses" class="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold shadow flex items-center">
+            <i class="fa-solid fa-warehouse mr-1.5"></i> Quản Lý Kho Hàng
+        </a>
+        <a href="/admin/locations" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow flex items-center">
+            <i class="fa-solid fa-layer-group mr-1.5"></i> Vị Trí Kệ Hàng
+        </a>
+    </div>
+</div>
+
+<% if (msg) { %>
+    <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+    </div>
+<% } %>
+
+<% if (err) { %>
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-triangle-exclamation mr-2 text-lg text-red-600"></i>
+        <div class="font-semibold text-sm"><%= err %></div>
+    </div>
+<% } %>
+
+<!-- BANNER CẢNH BÁO LÔ HÀNG CẬN HẠN SỬ DỤNG FEFO (Thủ tục check_expiry_alerts) -->
+<div class="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6 shadow-sm">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between pb-3 mb-3 border-b border-amber-200 gap-3">
+        <div class="flex items-center space-x-2.5">
+            <span class="p-2 bg-amber-500 text-white rounded-lg shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation text-base"></i>
+            </span>
+            <div>
+                <h3 class="font-bold text-amber-900 text-sm flex items-center">
+                    CẢNH BÁO FEFO: Phát Hiện <span class="mx-1 text-orange-600 font-black text-base"><%= expiryAlerts ? expiryAlerts.length : 0 %></span> Lô Hàng Cận Hạn Sử Dụng (Dưới <%= typeof warningDays !== 'undefined' ? warningDays : 30 %> Ngày)
+                </h3>
+                <p class="text-[11px] text-amber-700">Tự động kích hoạt kiểm tra thời hạn bằng Stored Procedure <code class="font-bold font-mono">pkg_logistics_core.check_expiry_alerts(:days)</code>.</p>
+            </div>
+        </div>
+
+        <!-- Bộ điều chỉnh số ngày cận hạn tự do linh hoạt -->
+        <div class="flex items-center space-x-2 shrink-0">
+            <form action="/admin/logistics" method="GET" class="flex items-center bg-white px-2.5 py-1.5 rounded-lg border border-amber-300 shadow-xs">
+                <span class="text-xs text-gray-600 font-semibold mr-2 flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left text-amber-600 mr-1.5"></i> Ngưỡng cảnh báo:
+                </span>
+                <input type="number" name="warningDays" min="1" max="365" value="<%= typeof warningDays !== 'undefined' ? warningDays : 30 %>" class="w-16 px-2 py-1 border border-gray-300 rounded text-center text-xs font-bold text-orange-600 focus:outline-none focus:border-orange-500">
+                <span class="text-xs text-gray-500 ml-1.5 mr-2 font-medium">ngày</span>
+                <button type="submit" class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs shadow-xs transition">
+                    Áp Dụng
+                </button>
+            </form>
+            <span class="text-[10px] font-mono bg-amber-200 text-amber-900 px-2 py-1.5 rounded-lg font-bold hidden sm:inline-block">
+                PROCEDURE check_expiry_alerts
+            </span>
+        </div>
+    </div>
+
+    <% if (!expiryAlerts || expiryAlerts.length === 0) { %>
+        <div class="p-6 text-center text-amber-800 bg-white/70 rounded-lg border border-amber-200">
+            <i class="fa-solid fa-circle-check text-2xl text-emerald-500 mb-1.5 block"></i>
+            <span class="text-xs font-bold">Tuyệt vời! Không có lô hàng nào cận hạn sử dụng trong vòng <%= typeof warningDays !== 'undefined' ? warningDays : 30 %> ngày tới.</span>
+        </div>
+    <% } else { %>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <% expiryAlerts.forEach(ea => { %>
+                <% 
+                    let badgeClass = "bg-amber-100 text-amber-800 border-amber-300";
+                    let iconClass = "fa-clock";
+                    let urgencyText = "Cận hạn (" + ea.DAYS_LEFT + " ngày)";
+                    if (ea.DAYS_LEFT <= 0) {
+                        badgeClass = "bg-red-100 text-red-800 border-red-300";
+                        iconClass = "fa-circle-xmark";
+                        urgencyText = "ĐÃ HẾT HẠN";
+                    } else if (ea.DAYS_LEFT <= 7) {
+                        badgeClass = "bg-rose-100 text-rose-800 border-rose-300";
+                        iconClass = "fa-fire";
+                        urgencyText = "NGUY CẤP (" + ea.DAYS_LEFT + " ngày)";
+                    }
+                %>
+                <div class="bg-white p-3 rounded-lg border border-amber-200 shadow-xs flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-gray-800 text-xs truncate max-w-[200px]" title="<%= ea.VARIANT_NAME %>">
+                            <%= ea.VARIANT_NAME %>
+                        </div>
+                        <div class="text-[10px] text-gray-500 font-mono mt-0.5">
+                            Lô: <strong><%= ea.BATCH_NUMBER %></strong> | SKU: <%= ea.SKU %>
+                        </div>
+                        <div class="text-[10px] text-gray-600 mt-1 flex items-center space-x-1.5">
+                            <span><i class="fa-solid fa-location-dot text-indigo-500"></i> Kệ <%= ea.AISLE %>-<%= ea.RACK %>-<%= ea.SHELF %>-<%= ea.BIN %></span>
+                            <span>•</span>
+                            <span>Tồn: <strong class="text-orange-600"><%= ea.QUANTITY %> sp</strong></span>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0 ml-2">
+                        <span class="px-2 py-1 rounded text-[10px] font-bold border <%= badgeClass %> inline-flex items-center">
+                            <i class="fa-solid <%= iconClass %> mr-1"></i> <%= urgencyText %>
+                        </span>
+                        <div class="text-[10px] text-gray-400 mt-1">Hạn: <%= ea.EXPIRY_DATE %></div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    <% } %>
+</div>
+
+<!-- 1. CẤT HÀNG TỪ PHIẾU NHẬP VÀO VỊ TRÍ KỆ & QUẢN LÝ PHIẾU NHẬP KHO -->
+<div class="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden mb-6">
+    <div class="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
+        <div>
+            <h3 class="font-bold text-orange-900 flex items-center text-sm">
+                <i class="fa-solid fa-dolly text-orange-600 mr-2 text-base"></i> Cất Hàng Vào Kệ Kho - Thủ tục process_inbound (Explicit Cursor)
+            </h3>
+            <p class="text-[11px] text-orange-700 mt-0.5">Duyệt qua từng dòng INBOUND_RECEIPT_ITEMS bằng Cursor để cập nhật bảng INVENTORY theo vị trí kệ.</p>
+        </div>
+        <span class="text-xs font-mono bg-orange-200 text-orange-800 px-2 py-0.5 rounded font-semibold">PROCEDURE process_inbound</span>
+    </div>
+    <div class="p-4">
+        <form action="/admin/logistics/inbound" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-xs mb-4">
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Chọn Phiếu Nhập Chờ Cất Kho *</label>
+                <select name="receiptId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none">
+                    <% receipts.filter(r => r.STATUS === 'PENDING').forEach(r => { %>
+                        <option value="<%= r.RECEIPT_ID %>">
+                            #<%= r.RECEIPT_ID %> - <%= r.SHOP_NAME %> (<%= r.TOTAL_QUANTITY %> sp, <%= r.TOTAL_BATCHES %> lô)
+                        </option>
+                    <% }) %>
+                    <% if (receipts.filter(r => r.STATUS === 'PENDING').length === 0) { %>
+                        <option value="">-- Không có phiếu PENDING nào --</option>
+                    <% } %>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Kho Tiếp Nhận *</label>
+                <select name="warehouseId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" onchange="onInboundWarehouseChanged(this.value)">
+                    <% warehouses.forEach(w => { %>
+                        <option value="<%= w.WAREHOUSE_ID %>"><%= w.WAREHOUSE_NAME %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Chỉ Định Vị Trí Kệ (Aisle-Rack-Shelf-Bin) *</label>
+                <select name="locationKey" id="inboundLocationSelect" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none">
+                    <% locations.forEach(l => { %>
+                        <option value="<%= l.AISLE %>-<%= l.RACK %>-<%= l.SHELF %>-<%= l.BIN %>">
+                            Dãy <%= l.AISLE %> | Kệ <%= l.RACK %> | Tầng <%= l.SHELF %> | Ô <%= l.BIN %>
+                        </option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div>
+                <button type="submit" class="w-full px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold shadow flex items-center justify-center">
+                    <i class="fa-solid fa-arrow-down-to-bracket mr-2"></i> Thực Thi Cất Kho (PL/SQL)
+                </button>
+            </div>
+        </form>
+
+        <!-- Danh Sách Toàn Bộ Phiếu Nhập Kho Kèm Nút Sửa / Xóa (Admin) -->
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <h4 class="font-bold text-gray-800 text-xs mb-2 flex items-center justify-between">
+                <span><i class="fa-solid fa-clipboard-list text-purple-600 mr-1.5"></i> Danh Sách Phiếu Nhập Kho Hệ Thống (Đồng bộ với Shopkeeper)</span>
+                <span class="text-[11px] font-normal text-gray-500">Tổng cộng: <strong><%= receipts.length %></strong> phiếu</span>
+            </h4>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="w-full text-left text-xs text-gray-600">
+                    <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                        <tr>
+                            <th class="p-2.5">Mã Phiếu</th>
+                            <th class="p-2.5">Cửa Hàng</th>
+                            <th class="p-2.5">Kho Đến</th>
+                            <th class="p-2.5">Số Lượng</th>
+                            <th class="p-2.5">Thời Gian</th>
+                            <th class="p-2.5">Trạng Thái</th>
+                            <th class="p-2.5 text-right">Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <% receipts.forEach(r => { %>
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-2.5 font-mono font-bold text-purple-700">#<%= r.RECEIPT_ID %></td>
+                                <td class="p-2.5 font-medium text-gray-800"><%= r.SHOP_NAME %></td>
+                                <td class="p-2.5 text-gray-600"><%= r.WAREHOUSE_NAME %></td>
+                                <td class="p-2.5 font-bold text-gray-900"><%= r.TOTAL_QUANTITY %> sp</td>
+                                <td class="p-2.5 text-gray-400 font-mono text-[10px]"><%= r.CREATED_AT %></td>
+                                <td class="p-2.5">
+                                    <% 
+                                        let sBadge = 'bg-yellow-100 text-yellow-800';
+                                        let sText = 'Chờ kiểm định & cất kệ';
+                                        if (r.STATUS === 'STOCK_REMOVED' || (r.STATUS === 'COMPLETED' && Number(r.CURRENT_INVENTORY_STOCK || 0) === 0 && Number(r.BATCHES_IN_INVENTORY || 0) === 0)) {
+                                            sBadge = 'bg-gray-100 text-gray-600 border border-gray-300';
+                                            sText = 'Đã xóa khỏi kho (Hết tồn kho)';
+                                        } else if (r.STATUS === 'COMPLETED') {
+                                            sBadge = 'bg-green-100 text-green-700';
+                                            sText = 'Đã cất kệ kho (Còn ' + (r.CURRENT_INVENTORY_STOCK || 0) + ' sp)';
+                                        }
+                                    %>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold <%= sBadge %>">
+                                        <%= sText %>
+                                    </span>
+                                </td>
+                                <td class="p-2.5 text-right space-x-1 whitespace-nowrap">
+                                    <button type="button" 
+                                            data-receipt-id="<%= r.RECEIPT_ID %>"
+                                            data-warehouse-id="<%= r.WAREHOUSE_ID %>"
+                                            data-status="<%= r.STATUS %>"
+                                            data-quantity="<%= r.TOTAL_QUANTITY %>"
+                                            onclick="handleOpenAdminEditReceiptModal(this)"
+                                            class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                        <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa
+                                    </button>
+                                    <form action="/admin/logistics/inbound/delete" method="POST" class="inline-block" onsubmit="return confirm('CẢNH BÁO: Xóa phiếu nhập #<%= r.RECEIPT_ID %> sẽ xóa toàn bộ lô hàng tồn kho liên kết?');">
+                                        <input type="hidden" name="receiptId" value="<%= r.RECEIPT_ID %>">
+                                        <button type="submit" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                            <i class="fa-solid fa-trash mr-1"></i> Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. BẢNG TỔNG HỢP TỒN KHO & ĐIỀU CHUYỂN VỊ TRÍ HÀNG TỒN (Yêu cầu trọng tâm) -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+    <div class="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between bg-gray-50 gap-3">
+        <div>
+            <h3 class="font-bold text-gray-900 flex items-center text-sm">
+                <i class="fa-solid fa-boxes-stacked text-blue-600 mr-2 text-base"></i> Bảng Tổng Hợp Tồn Kho Kèm Định Vị Kệ (Truy Vấn 1)
+            </h3>
+            <p class="text-[11px] text-gray-500 mt-0.5">Theo dõi vị trí kệ Aisle-Rack-Shelf-Bin. Cho phép <strong>Điều chuyển vị trí</strong> hoặc <strong>Xóa hàng tồn</strong> để giải phóng kệ.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span id="filterCount_inventoryTable" class="text-xs font-mono bg-blue-100 text-blue-800 px-2.5 py-1 rounded font-semibold"><%= inventory.length %> vị trí lô</span>
+        </div>
+    </div>
+
+    <!-- THANH TÌM KIẾM & BỘ LỌC CẬN HẠN TÙY CHỈNH SỐ NGÀY -->
+    <div class="p-3 bg-white border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <!-- Ô tìm kiếm từ khóa -->
+        <div class="relative flex-1 min-w-[260px] max-w-md">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+            <input type="text" id="inventorySearchInput" onkeyup="applyInventoryFilters()" placeholder="Tìm theo tên sản phẩm, mã SKU, mã lô, kho, vị trí kệ..." class="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 shadow-sm">
+            <button type="button" onclick="clearInventorySearch()" title="Xóa từ khóa" class="absolute right-2.5 top-2 text-gray-400 hover:text-red-600 text-xs">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Bộ lọc cận hạn tự do & trạng thái -->
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Chọn mốc ngày cận hạn -->
+            <div class="flex items-center space-x-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">
+                <i class="fa-solid fa-clock-rotate-left text-amber-500 text-xs"></i>
+                <span class="text-gray-600 font-medium">Lọc cận hạn:</span>
+                <select id="filterExpiryPreset" onchange="onExpiryPresetChanged(this.value)" class="bg-white border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-blue-500 font-semibold text-gray-700">
+                    <option value="all">-- Tất cả hạn dùng --</option>
+                    <option value="expired">Đã quá hạn (&le; 0 ngày)</option>
+                    <option value="7">Cận hạn &le; 7 ngày</option>
+                    <option value="15">Cận hạn &le; 15 ngày</option>
+                    <option value="30">Cận hạn &le; 30 ngày</option>
+                    <option value="60">Cận hạn &le; 60 ngày</option>
+                    <option value="custom">Tự nhập số ngày...</option>
+                </select>
+            </div>
+
+            <!-- Ô nhập số ngày tự do (hiển thị khi chọn custom hoặc muốn chỉnh ngay) -->
+            <div id="customDaysWrapper" class="hidden flex items-center space-x-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                <span class="text-[11px] text-amber-800 font-semibold">&le;</span>
+                <input type="number" id="customDaysInput" min="0" max="3650" placeholder="Số ngày" value="30" oninput="applyInventoryFilters()" class="w-16 px-1.5 py-0.5 text-xs border border-amber-300 rounded text-center font-bold text-amber-900 bg-white focus:outline-none">
+                <span class="text-[11px] text-amber-800">ngày</span>
+            </div>
+
+            <!-- Lọc theo Kho -->
+            <select id="filterWarehouse" onchange="applyInventoryFilters()" class="bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 text-gray-700">
+                <option value="">-- Tất cả Kho --</option>
+                <% warehouses.forEach(w => { %>
+                    <option value="<%= w.WAREHOUSE_NAME.toLowerCase() %>"><%= w.WAREHOUSE_NAME %></option>
+                <% }) %>
+            </select>
+
+            <!-- Lọc theo Trạng thái tồn -->
+            <select id="filterStockStatus" onchange="applyInventoryFilters()" class="bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 text-gray-700">
+                <option value="">-- Tất cả Trạng thái --</option>
+                <option value="CAN_NHAP_THEM">Cần nhập thêm (&le; Tối thiểu)</option>
+                <option value="BINH_THUONG">Bình thường</option>
+            </select>
+
+            <!-- Nút Reset bộ lọc -->
+            <button type="button" onclick="resetAllInventoryFilters()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold shadow-sm flex items-center">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i> Đặt lại
+            </button>
+        </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table id="inventoryTable" class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-100 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">Mã Phiếu</th>
+                    <th class="p-3">Kho & Vị Trí Kệ</th>
+                    <th class="p-3">Sản Phẩm</th>
+                    <th class="p-3">Mã SKU</th>
+                    <th class="p-3">Mã Lô (Batch)</th>
+                    <th class="p-3">Số Lượng Tồn</th>
+                    <th class="p-3">Tồn Tối Thiểu</th>
+                    <th class="p-3">Hạn Sử Dụng</th>
+                    <th class="p-3">Trạng Thái Tồn</th>
+                    <th class="p-3 text-right">Thao Tác Hàng Tồn</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% if (inventory.length === 0) { %>
+                    <tr><td colspan="10" class="p-4 text-center text-gray-400">Chưa có dữ liệu tồn kho.</td></tr>
+                <% } else { %>
+                    <% inventory.forEach(inv => { %>
+                        <tr class="hover:bg-gray-50 inventory-row" 
+                            data-days-left="<%= typeof inv.DAYS_LEFT !== 'undefined' && inv.DAYS_LEFT !== null ? inv.DAYS_LEFT : 99999 %>"
+                            data-warehouse="<%= (inv.WAREHOUSE_NAME || '').toLowerCase() %>"
+                            data-status="<%= inv.TRANG_THAI_TON %>">
+                            <td class="p-3">
+                                <% if (inv.RECEIPT_ID) { %>
+                                    <span class="px-2 py-1 rounded bg-purple-100 text-purple-700 font-mono font-bold text-[11px]">
+                                        #<%= inv.RECEIPT_ID %>
+                                    </span>
+                                <% } else { %>
+                                    <span class="text-gray-400 font-mono text-[11px]">-</span>
+                                <% } %>
+                            </td>
+                            <td class="p-3">
+                                <span class="font-bold text-gray-900"><%= inv.WAREHOUSE_NAME %></span>
+                                <div class="font-mono text-indigo-600 font-bold mt-0.5">
+                                    <i class="fa-solid fa-location-dot mr-1"></i><%= inv.VI_TRI_KE %>
+                                </div>
+                            </td>
+                            <td class="p-3 font-medium text-gray-900"><%= inv.PRODUCT_NAME %></td>
+                            <td class="p-3 font-mono text-gray-600"><%= inv.SKU %></td>
+                            <td class="p-3 font-mono font-semibold text-gray-800"><%= inv.BATCH_NUMBER %></td>
+                            <td class="p-3 font-bold text-sm <%= inv.QUANTITY <= inv.MIN_STOCK_LEVEL ? 'text-red-600' : 'text-gray-900' %>">
+                                <%= inv.QUANTITY %>
+                            </td>
+                            <td class="p-3 text-gray-500"><%= inv.MIN_STOCK_LEVEL %></td>
+                            <td class="p-3">
+                                <% if (inv.EXPIRY_DATE) { %>
+                                    <% if (inv.DAYS_LEFT <= 0) { %>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white animate-pulse">
+                                            <i class="fa-solid fa-skull mr-1"></i>ĐÃ HẾT HẠN (<%= inv.EXPIRY_DATE %>)
+                                        </span>
+                                    <% } else if (inv.DAYS_LEFT <= 7) { %>
+                                        <span class="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">
+                                            <i class="fa-solid fa-triangle-exclamation mr-1"></i><%= inv.EXPIRY_DATE %> (Còn <%= inv.DAYS_LEFT %> ngày)
+                                        </span>
+                                    <% } else if (inv.DAYS_LEFT <= 30) { %>
+                                        <span class="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                            <i class="fa-solid fa-clock mr-1"></i><%= inv.EXPIRY_DATE %> (Còn <%= inv.DAYS_LEFT %> ngày)
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-gray-700 font-medium">
+                                            <%= inv.EXPIRY_DATE %> (Còn <%= inv.DAYS_LEFT %> ngày)
+                                        </span>
+                                    <% } %>
+                                <% } else { %>
+                                    <span class="text-gray-400">Không có hạn</span>
+                                <% } %>
+                            </td>
+                            <td class="p-3">
+                                <% if (inv.TRANG_THAI_TON === 'CAN_NHAP_THEM') { %>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">CẦN NHẬP THÊM</span>
+                                <% } else { %>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">BÌNH THƯỜNG</span>
+                                <% } %>
+                            </td>
+                            <td class="p-3 text-right space-x-1 whitespace-nowrap">
+                                <button onclick="openEditInventoryModal(<%= inv.WAREHOUSE_ID %>, '<%= inv.AISLE %>', '<%= inv.RACK %>', '<%= inv.SHELF %>', '<%= inv.BIN %>', <%= inv.PRODUCT_ID %>, '<%= inv.SKU %>', '<%= inv.BATCH_NUMBER %>', <%= inv.QUANTITY %>, <%= inv.MIN_STOCK_LEVEL %>, '<%= inv.EXPIRY_DATE || '' %>', '<%= inv.PRODUCT_NAME.replace(/'/g, "\\'") %>', '<%= inv.WAREHOUSE_NAME.replace(/'/g, "\\'") %>')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[11px] font-semibold" title="Chỉnh sửa số lượng, mức tối thiểu và hạn dùng">
+                                    <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa
+                                </button>
+                                <button onclick="openMoveInventoryModal(<%= inv.WAREHOUSE_ID %>, '<%= inv.AISLE %>', '<%= inv.RACK %>', '<%= inv.SHELF %>', '<%= inv.BIN %>', <%= inv.PRODUCT_ID %>, '<%= inv.SKU %>', '<%= inv.BATCH_NUMBER %>', <%= inv.QUANTITY %>)" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-semibold" title="Chuyển lô hàng sang vị trí kệ khác">
+                                    <i class="fa-solid fa-arrows-up-down-left-right mr-1"></i> Đổi Vị Trí
+                                </button>
+                                <form action="/admin/inventory/delete" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa bản ghi tồn kho của lô [<%= inv.BATCH_NUMBER %>]? Việc này giúp giải phóng vị trí kệ để có thể xóa kệ.')">
+                                    <input type="hidden" name="warehouseId" value="<%= inv.WAREHOUSE_ID %>">
+                                    <input type="hidden" name="aisle" value="<%= inv.AISLE %>">
+                                    <input type="hidden" name="rack" value="<%= inv.RACK %>">
+                                    <input type="hidden" name="shelf" value="<%= inv.SHELF %>">
+                                    <input type="hidden" name="bin" value="<%= inv.BIN %>">
+                                    <input type="hidden" name="productId" value="<%= inv.PRODUCT_ID %>">
+                                    <input type="hidden" name="sku" value="<%= inv.SKU %>">
+                                    <input type="hidden" name="batchNumber" value="<%= inv.BATCH_NUMBER %>">
+                                    <button type="submit" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-semibold" title="Xóa hàng tồn kho">
+                                        <i class="fa-solid fa-trash mr-1"></i> Xóa Tồn
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. NHẬT KÝ AUDIT LOG TỒN KHO TỰ ĐỘNG (TRIGGER trg_audit_inventory) -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+        <div>
+            <h3 class="font-bold text-gray-900 flex items-center text-sm">
+                <i class="fa-solid fa-clock-rotate-left text-slate-700 mr-2 text-base"></i> Bảng Ghi Kiểm Toán Biến Động Tồn Kho - Trigger trg_audit_inventory
+            </h3>
+            <p class="text-[11px] text-gray-500 mt-0.5">Tự động kích hoạt ghi log khi cột Quantity trên bảng INVENTORY bị UPDATE.</p>
+        </div>
+        <span class="text-xs font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-semibold">TRIGGER AFTER UPDATE</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-100 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">Mã Log</th>
+                    <th class="p-3">Mã SKU</th>
+                    <th class="p-3">Mã Lô Hàng</th>
+                    <th class="p-3">Số Lượng Cũ</th>
+                    <th class="p-3">Số Lượng Mới</th>
+                    <th class="p-3">Biến Động</th>
+                    <th class="p-3">Thời Gian Kích Hoạt</th>
+                    <th class="p-3">Thực Hiện Bởi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 font-mono">
+                <% if (auditLogs.length === 0) { %>
+                    <tr><td colspan="8" class="p-4 text-center text-gray-400 font-sans">Chưa có nhật ký kiểm toán.</td></tr>
+                <% } else { %>
+                    <% auditLogs.forEach(al => { %>
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-bold text-gray-500">#<%= al.LOG_ID %></td>
+                            <td class="p-3 text-indigo-600 font-bold"><%= al.SKU %></td>
+                            <td class="p-3 text-gray-800"><%= al.BATCH_NUMBER %></td>
+                            <td class="p-3 text-gray-500"><%= al.OLD_QUANTITY %></td>
+                            <td class="p-3 font-bold <%= al.NEW_QUANTITY < al.OLD_QUANTITY ? 'text-red-600' : 'text-green-600' %>"><%= al.NEW_QUANTITY %></td>
+                            <td class="p-3">
+                                <% const diff = al.NEW_QUANTITY - al.OLD_QUANTITY; %>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold <%= diff < 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' %>">
+                                    <%= diff > 0 ? '+' + diff : diff %>
+                                </span>
+                            </td>
+                            <td class="p-3 text-gray-500 font-sans"><%= al.ACTION_TIME %></td>
+                            <td class="p-3 text-slate-700 font-bold font-sans"><%= al.ACTION_BY %></td>
+                        </tr>
+                    <% }) %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==================== CÁC MODAL THAO TÁC ==================== -->
+
+<!-- Modal 1: Chỉnh Sửa Hàng Tồn Kho (Số lượng, Tồn tối thiểu, Hạn dùng) -->
+<div id="modalEditInventory" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+        <button onclick="document.getElementById('modalEditInventory').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fa-solid fa-pen-to-square text-amber-600 mr-2"></i> Chỉnh Sửa Lô Hàng Tồn Kho
+        </h3>
+        <p class="text-[11px] text-gray-500 mb-3">Hệ thống sẽ tự động kích hoạt trigger <code class="bg-gray-100 text-slate-700 px-1 py-0.5 rounded font-mono font-bold">trg_audit_inventory</code> để lưu vết kiểm toán nếu số lượng tồn thay đổi.</p>
+
+        <form action="/admin/inventory/update" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" id="editInvWhId" name="warehouseId">
+            <input type="hidden" id="editInvAisle" name="aisle">
+            <input type="hidden" id="editInvRack" name="rack">
+            <input type="hidden" id="editInvShelf" name="shelf">
+            <input type="hidden" id="editInvBin" name="bin">
+            <input type="hidden" id="editInvProdId" name="productId">
+            <input type="hidden" id="editInvSku" name="sku">
+            <input type="hidden" id="editInvBatch" name="batchNumber">
+
+            <div class="p-3 bg-amber-50/70 rounded-lg border border-amber-200/80 space-y-1">
+                <div>Sản phẩm: <strong id="editInvProdName" class="text-gray-900"></strong></div>
+                <div>Kho & Vị trí kệ: <strong id="editInvWhName" class="text-gray-800"></strong> (<span id="editInvLocationCode" class="font-mono text-indigo-700 font-bold"></span>)</div>
+                <div>Mã SKU: <strong id="editInvDisplaySku" class="font-mono text-indigo-800"></strong> | Lô: <strong id="editInvDisplayBatch" class="font-mono text-gray-800"></strong></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Số Lượng Tồn Kho *</label>
+                    <input type="number" id="editInvQuantity" name="quantity" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-500 font-bold text-sm">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Mức Tồn Tối Thiểu *</label>
+                    <input type="number" id="editInvMinStock" name="minStockLevel" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-500 font-bold text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Hạn Sử Dụng Lô Hàng (Expiry Date)</label>
+                <input type="date" id="editInvExpiry" name="expiryDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-500">
+                <p class="text-[10px] text-gray-400 mt-1">Đổi ngày hết hạn sẽ đồng bộ vào thông tin lô hàng nhập kho của sản phẩm này.</p>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalEditInventory').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold shadow">Lưu Cập Nhật</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Điều Chuyển Vị Trí Hàng Tồn Kho (Move Inventory) -->
+<div id="modalMoveInventory" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+        <button onclick="document.getElementById('modalMoveInventory').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-3 flex items-center">
+            <i class="fa-solid fa-arrows-up-down-left-right text-indigo-600 mr-2"></i> Điều Chuyển Vị Trí Hàng Tồn Kho
+        </h3>
+
+        <form action="/admin/inventory/move" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" id="moveWhId" name="warehouseId">
+            <input type="hidden" id="moveFromAisle" name="fromAisle">
+            <input type="hidden" id="moveFromRack" name="fromRack">
+            <input type="hidden" id="moveFromShelf" name="fromShelf">
+            <input type="hidden" id="moveFromBin" name="fromBin">
+            <input type="hidden" id="moveProdId" name="productId">
+            <input type="hidden" id="moveSku" name="sku">
+            <input type="hidden" id="moveBatchNumber" name="batchNumber">
+
+            <div class="p-3 bg-indigo-50/60 rounded-lg border border-indigo-100 space-y-1">
+                <div>Mã SKU: <strong id="moveDisplaySku" class="font-mono text-indigo-800"></strong></div>
+                <div>Lô hàng: <strong id="moveDisplayBatch" class="font-mono text-gray-800"></strong> (Số lượng: <span id="moveDisplayQty" class="font-bold text-orange-600"></span> sp)</div>
+                <div>Vị trí hiện tại: <strong id="moveDisplayFrom" class="font-mono text-purple-700"></strong></div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Chọn Vị Trí Kệ Đích Cần Chuyển Đến *</label>
+                <select name="toLocationKey" id="moveToLocationSelect" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 bg-white font-mono">
+                    <% locations.forEach(l => { %>
+                        <option value="<%= l.AISLE %>-<%= l.RACK %>-<%= l.SHELF %>-<%= l.BIN %>">
+                            Dãy <%= l.AISLE %> - Kệ <%= l.RACK %> - Tầng <%= l.SHELF %> - Ô <%= l.BIN %> (<%= l.WAREHOUSE_NAME %>)
+                        </option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalMoveInventory').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow">Xác Nhận Điều Chuyển</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<%- include('admin-layout-bottom') %>
+
+<!-- Modal Chỉnh Sửa Phiếu Nhập Kho (Admin) -->
+<div id="modalAdminEditReceipt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+        <button onclick="closeAdminEditReceiptModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fa-solid fa-pen-to-square text-blue-600 mr-2"></i> Chỉnh Sửa Phiếu Nhập Kho #<span id="adminEditReceiptIdText"></span>
+        </h3>
+        <p class="text-xs text-gray-500 mb-4">Cập nhật kho tiếp nhận, trạng thái hoặc số lượng/hạn sử dụng lô hàng (đồng bộ với Người bán).</p>
+
+        <form action="/admin/logistics/inbound/update" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" id="adminEditReceiptId" name="receiptId">
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Kho Tiếp Nhận *</label>
+                <select id="adminEditWarehouseId" name="warehouseId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+                    <% warehouses.forEach(w => { %>
+                        <option value="<%= w.WAREHOUSE_ID %>"><%= w.WAREHOUSE_NAME %> - <%= w.ADDRESS %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Trạng Thái Phiếu *</label>
+                <select id="adminEditReceiptStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-semibold bg-white">
+                    <option value="PENDING">Chờ kiểm định & cất kệ (PENDING)</option>
+                    <option value="COMPLETED">Đã cất kệ kho (COMPLETED)</option>
+                    <option value="STOCK_REMOVED">Đã xóa khỏi kho (Hết tồn kho)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Số Lượng Hàng Trong Lô (sp)</label>
+                <input type="number" id="adminEditReceiptQuantity" name="quantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Hạn Sử Dụng (Expiry Date - YYYY-MM-DD)</label>
+                <input type="date" id="adminEditReceiptExpiry" name="expiryDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2 border-t border-gray-100">
+                <button type="button" onclick="closeAdminEditReceiptModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy Bỏ</button>
+                <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow">Lưu Thông Tin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function handleOpenAdminEditReceiptModal(btn) {
+    const receiptId = btn.getAttribute('data-receipt-id');
+    const warehouseId = btn.getAttribute('data-warehouse-id');
+    const status = btn.getAttribute('data-status');
+    const quantity = btn.getAttribute('data-quantity');
+
+    document.getElementById('adminEditReceiptIdText').innerText = receiptId;
+    document.getElementById('adminEditReceiptId').value = receiptId;
+    document.getElementById('adminEditWarehouseId').value = warehouseId || '1';
+    document.getElementById('adminEditReceiptStatus').value = status || 'PENDING';
+    document.getElementById('adminEditReceiptQuantity').value = quantity || '';
+    document.getElementById('modalAdminEditReceipt').classList.remove('hidden');
+}
+
+function closeAdminEditReceiptModal() {
+    document.getElementById('modalAdminEditReceipt').classList.add('hidden');
+}
+
+const allLocationsData = <%- JSON.stringify(typeof locations !== 'undefined' ? locations : []) %>;
+
+function onInboundWarehouseChanged(whId) {
+    const locSelect = document.getElementById('inboundLocationSelect');
+    if (!locSelect) return;
+    locSelect.innerHTML = '';
+    const filtered = allLocationsData.filter(l => Number(l.WAREHOUSE_ID) === Number(whId));
+    if (filtered.length > 0) {
+        filtered.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.AISLE + '-' + l.RACK + '-' + l.SHELF + '-' + l.BIN;
+            opt.textContent = 'Dãy ' + l.AISLE + ' | Kệ ' + l.RACK + ' | Tầng ' + l.SHELF + ' | Ô ' + l.BIN;
+            locSelect.appendChild(opt);
+        });
+    } else {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '-- Kho này chưa có vị trí kệ nào --';
+        locSelect.appendChild(opt);
+    }
+}
+
+function openEditInventoryModal(whId, a, r, s, b, prodId, sku, batch, qty, minStock, expiry, prodName, whName) {
+    document.getElementById('editInvWhId').value = whId;
+    document.getElementById('editInvAisle').value = a;
+    document.getElementById('editInvRack').value = r;
+    document.getElementById('editInvShelf').value = s;
+    document.getElementById('editInvBin').value = b;
+    document.getElementById('editInvProdId').value = prodId;
+    document.getElementById('editInvSku').value = sku;
+    document.getElementById('editInvBatch').value = batch;
+
+    document.getElementById('editInvProdName').innerText = prodName;
+    document.getElementById('editInvWhName').innerText = whName;
+    document.getElementById('editInvLocationCode').innerText = a + '-' + r + '-' + s + '-' + b;
+    document.getElementById('editInvDisplaySku').innerText = sku;
+    document.getElementById('editInvDisplayBatch').innerText = batch;
+
+    document.getElementById('editInvQuantity').value = qty;
+    document.getElementById('editInvMinStock').value = minStock;
+    document.getElementById('editInvExpiry').value = expiry ? expiry.substring(0, 10) : '';
+
+    document.getElementById('modalEditInventory').classList.remove('hidden');
+}
+
+function openMoveInventoryModal(whId, a, r, s, b, prodId, sku, batch, qty) {
+    document.getElementById('moveWhId').value = whId;
+    document.getElementById('moveFromAisle').value = a;
+    document.getElementById('moveFromRack').value = r;
+    document.getElementById('moveFromShelf').value = s;
+    document.getElementById('moveFromBin').value = b;
+    document.getElementById('moveProdId').value = prodId;
+    document.getElementById('moveSku').value = sku;
+    document.getElementById('moveBatchNumber').value = batch;
+
+    document.getElementById('moveDisplaySku').innerText = sku;
+    document.getElementById('moveDisplayBatch').innerText = batch;
+    document.getElementById('moveDisplayQty').innerText = qty;
+    document.getElementById('moveDisplayFrom').innerText = a + '-' + r + '-' + s + '-' + b;
+
+    document.getElementById('modalMoveInventory').classList.remove('hidden');
+}
+
+// ==================== BỘ LỌC TỒN KHO & TÌM KIẾM & CẬN HẠN TỰ DO ====================
+function onExpiryPresetChanged(val) {
+    const customWrapper = document.getElementById('customDaysWrapper');
+    if (val === 'custom') {
+        customWrapper.classList.remove('hidden');
+    } else {
+        customWrapper.classList.add('hidden');
+    }
+    applyInventoryFilters();
+}
+
+function clearInventorySearch() {
+    const input = document.getElementById('inventorySearchInput');
+    if (input) {
+        input.value = '';
+        applyInventoryFilters();
+    }
+}
+
+function resetAllInventoryFilters() {
+    const searchInput = document.getElementById('inventorySearchInput');
+    const presetSelect = document.getElementById('filterExpiryPreset');
+    const customDaysInput = document.getElementById('customDaysInput');
+    const whSelect = document.getElementById('filterWarehouse');
+    const statusSelect = document.getElementById('filterStockStatus');
+    const customWrapper = document.getElementById('customDaysWrapper');
+
+    if (searchInput) searchInput.value = '';
+    if (presetSelect) presetSelect.value = 'all';
+    if (customDaysInput) customDaysInput.value = '30';
+    if (whSelect) whSelect.value = '';
+    if (statusSelect) statusSelect.value = '';
+    if (customWrapper) customWrapper.classList.add('hidden');
+
+    applyInventoryFilters();
+}
+
+function applyInventoryFilters() {
+    const query = (document.getElementById('inventorySearchInput')?.value || '').toLowerCase().trim();
+    const expiryPreset = document.getElementById('filterExpiryPreset')?.value || 'all';
+    const customDaysVal = parseInt(document.getElementById('customDaysInput')?.value, 10);
+    const selectedWh = (document.getElementById('filterWarehouse')?.value || '').toLowerCase().trim();
+    const selectedStatus = document.getElementById('filterStockStatus')?.value || '';
+
+    const rows = document.querySelectorAll('#inventoryTable tbody tr.inventory-row');
+    let visibleCount = 0;
+
+    rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        const daysLeft = parseFloat(r.getAttribute('data-days-left'));
+        const rowWh = r.getAttribute('data-warehouse') || '';
+        const rowStatus = r.getAttribute('data-status') || '';
+
+        // 1. Kiểm tra từ khóa tìm kiếm
+        let matchQuery = !query || text.includes(query);
+
+        // 2. Kiểm tra bộ lọc cận hạn
+        let matchExpiry = true;
+        if (expiryPreset === 'expired') {
+            matchExpiry = (daysLeft <= 0);
+        } else if (expiryPreset === '7') {
+            matchExpiry = (daysLeft <= 7);
+        } else if (expiryPreset === '15') {
+            matchExpiry = (daysLeft <= 15);
+        } else if (expiryPreset === '30') {
+            matchExpiry = (daysLeft <= 30);
+        } else if (expiryPreset === '60') {
+            matchExpiry = (daysLeft <= 60);
+        } else if (expiryPreset === 'custom') {
+            const maxDays = isNaN(customDaysVal) ? 99999 : customDaysVal;
+            matchExpiry = (daysLeft <= maxDays);
+        }
+
+        // 3. Kiểm tra kho
+        let matchWh = !selectedWh || rowWh.includes(selectedWh);
+
+        // 4. Kiểm tra trạng thái tồn
+        let matchStatus = !selectedStatus || (rowStatus === selectedStatus);
+
+        if (matchQuery && matchExpiry && matchWh && matchStatus) {
+            r.style.display = '';
+            visibleCount++;
+        } else {
+            r.style.display = 'none';
+        }
+    });
+
+    const countEl = document.getElementById('filterCount_inventoryTable');
+    if (countEl) {
+        countEl.innerText = `${visibleCount} / ${rows.length} vị trí lô`;
+    }
+}
+</script>

@@ -1,0 +1,185 @@
+<%- include('../partials/header') %>
+
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-sm shadow-sm p-8 border border-gray-100">
+        <div class="border-b border-gray-100 pb-4 mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900 flex items-center">
+                    <i class="fa-regular fa-user mr-2 text-[#ee4d2d]"></i> Thông Tin Của Tôi
+                </h1>
+                <p class="text-xs text-gray-500 mt-1">Quản lý thông tin hồ sơ cá nhân để bảo mật tài khoản</p>
+            </div>
+            <div class="flex items-center space-x-2 text-xs">
+                <a href="/my-orders" class="px-3 py-1.5 bg-gray-100 hover:bg-orange-50 text-gray-700 hover:text-[#ee4d2d] rounded font-medium flex items-center transition">
+                    <i class="fa-solid fa-box-archive mr-1.5"></i> Đơn Hàng Của Tôi
+                </a>
+                <a href="/favorites" class="px-3 py-1.5 bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 rounded font-medium flex items-center transition">
+                    <i class="fa-solid fa-heart mr-1.5 text-red-500"></i> Sản Phẩm Yêu Thích
+                </a>
+            </div>
+        </div>
+
+        <% if (msg) { %>
+            <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-xs flex items-center">
+                <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+            </div>
+        <% } %>
+
+        <% if (err) { %>
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs flex items-center">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i> <%= err %>
+            </div>
+        <% } %>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Form thông tin tài khoản -->
+            <form id="profileForm" action="/profile/update" method="POST" onsubmit="return confirmUpdateProfile(event)" class="md:col-span-2 space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-gray-600 mb-1">Tên Đăng Nhập</label>
+                    <input type="text" value="<%= user.USERNAME %>" disabled class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-500 font-mono cursor-not-allowed">
+                    <p class="text-[10px] text-gray-400 mt-0.5">Tên đăng nhập được gán cố định và không thể thay đổi.</p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Họ và Tên *</label>
+                    <input type="text" id="profFullName" name="fullName" value="<%= user.FULL_NAME %>" disabled required class="profile-input w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 focus:outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Email * (Dùng để đăng nhập)</label>
+                    <input type="email" id="profEmail" name="email" value="<%= user.EMAIL %>" disabled required class="profile-input w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 focus:outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Số Điện Thoại</label>
+                    <input type="tel" id="profPhone" name="phone" value="<%= user.PHONE || '' %>" placeholder="0901234567" disabled class="profile-input w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 focus:outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">
+                        <i class="fa-solid fa-house-user text-[#ee4d2d] mr-1"></i> Địa Chỉ Nhà / Địa Chỉ Giao Hàng Mặc Định
+                    </label>
+                    <textarea id="profAddress" name="address" rows="2" placeholder="VD: 123 Đường Lê Trọng Tấn, Phường Tây Thạnh, Quận Tân Phú, TP. Hồ Chí Minh" disabled class="profile-input w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 focus:outline-none transition"><%= user.ADDRESS || '' %></textarea>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Địa chỉ này sẽ được hệ thống tự động điền khi bạn tiến hành thanh toán đặt hàng.</p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">URL Avatar (để trống sẽ dùng ảnh mặc định)</label>
+                    <input type="url" id="profAvatar" name="avatar" value="<%= user.AVATAR && user.AVATAR !== '/images/default-avatar.png' ? user.AVATAR : '' %>" placeholder="https://..." disabled class="profile-input w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 focus:outline-none transition" oninput="previewAvatar(this.value)">
+                </div>
+
+                <!-- Cụm nút Thao tác: Chế độ Xem vs Chế độ Chỉnh sửa -->
+                <div class="pt-4 flex items-center space-x-3">
+                    <!-- Trạng thái 1: Khi chưa bấm chỉnh sửa (Mặc định) -->
+                    <button type="button" id="btnStartEdit" onclick="enableEditMode()" class="px-5 py-2.5 bg-[#ee4d2d] hover:bg-[#d73211] text-white font-bold rounded text-xs shadow flex items-center cursor-pointer transition">
+                        <i class="fa-solid fa-pen-to-square mr-1.5"></i> Chỉnh Sửa Thông Tin
+                    </button>
+
+                    <!-- Trạng thái 2: Khi đang ở chế độ chỉnh sửa -->
+                    <div id="editingActions" class="hidden flex items-center space-x-3">
+                        <button type="submit" class="px-5 py-2.5 bg-[#ee4d2d] hover:bg-[#d73211] text-white font-bold rounded text-xs shadow flex items-center cursor-pointer transition">
+                            <i class="fa-solid fa-floppy-disk mr-1.5"></i> Lưu Thay Đổi
+                        </button>
+                        <button type="button" onclick="cancelEditMode()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded text-xs border border-gray-300 flex items-center cursor-pointer transition">
+                            <i class="fa-solid fa-xmark mr-1.5 text-gray-500"></i> Hủy Thay Đổi
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Cột Avatar hiển thị & Nút Xóa vĩnh viễn tài khoản (Yêu cầu 5 & 6) -->
+            <div class="flex flex-col items-center justify-between border-l border-gray-100 pl-6 text-center">
+                <div class="flex flex-col items-center">
+                    <img id="avatarPreviewImg" src="<%= user.AVATAR || '/images/default-avatar.png' %>" class="w-32 h-32 rounded-full object-cover border-2 border-gray-200 shadow-sm mb-3">
+                    <span class="text-xs text-gray-500 font-semibold">Avatar Hiện Tại</span>
+                    <p class="text-[10px] text-gray-400 mt-1 max-w-[180px]">Định dạng: .JPEG, .PNG. Mặc định là avatar hệ thống nếu chưa gán ảnh.</p>
+                </div>
+
+                <!-- Xóa vĩnh viễn tài khoản có xác nhận trước (Yêu cầu 5) -->
+                <div class="w-full pt-6 border-t border-gray-100 mt-6">
+                    <button type="button" onclick="confirmDeleteAccount()" class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-bold border border-red-200">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Xóa Vĩnh Viễn Tài Khoản
+                    </button>
+                    <form id="deleteAccountForm" action="/profile/delete-account" method="POST" class="hidden"></form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Lưu lại giá trị ban đầu để có thể phục hồi khi ấn nút "Hủy thay đổi"
+const originalValues = {
+    fullName: "<%= (user.FULL_NAME || '').replace(/"/g, '\\"') %>",
+    email: "<%= (user.EMAIL || '').replace(/"/g, '\\"') %>",
+    phone: "<%= (user.PHONE || '').replace(/"/g, '\\"') %>",
+    address: "<%= (user.ADDRESS || '').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n') %>",
+    avatar: "<%= (user.AVATAR && user.AVATAR !== '/images/default-avatar.png' ? user.AVATAR : '').replace(/"/g, '\\"') %>"
+};
+
+function enableEditMode() {
+    // Mở khóa các ô input
+    const inputs = document.querySelectorAll('.profile-input');
+    inputs.forEach(input => {
+        input.disabled = false;
+        input.classList.remove('bg-gray-50', 'text-gray-700', 'border-gray-200');
+        input.classList.add('bg-white', 'border-gray-300', 'focus:border-[#ee4d2d]');
+    });
+
+    // Ẩn nút "Chỉnh Sửa Thông Tin" và hiện 2 nút "Lưu Thay Đổi" & "Hủy Thay Đổi"
+    document.getElementById('btnStartEdit').classList.add('hidden');
+    document.getElementById('editingActions').classList.remove('hidden');
+
+    // Focus vào ô Họ và tên
+    document.getElementById('profFullName').focus();
+}
+
+function cancelEditMode() {
+    // Khôi phục giá trị ban đầu
+    document.getElementById('profFullName').value = originalValues.fullName;
+    document.getElementById('profEmail').value = originalValues.email;
+    document.getElementById('profPhone').value = originalValues.phone;
+    document.getElementById('profAddress').value = originalValues.address;
+    document.getElementById('profAvatar').value = originalValues.avatar;
+    previewAvatar(originalValues.avatar);
+
+    // Khóa lại các ô input
+    const inputs = document.querySelectorAll('.profile-input');
+    inputs.forEach(input => {
+        input.disabled = true;
+        input.classList.remove('bg-white', 'border-gray-300', 'focus:border-[#ee4d2d]');
+        input.classList.add('bg-gray-50', 'text-gray-700', 'border-gray-200');
+    });
+
+    // Hiện lại nút "Chỉnh Sửa Thông Tin" và ẩn 2 nút Lưu/Hủy
+    document.getElementById('btnStartEdit').classList.remove('hidden');
+    document.getElementById('editingActions').classList.add('hidden');
+}
+
+function previewAvatar(url) {
+    const img = document.getElementById('avatarPreviewImg');
+    if (url && url.trim()) {
+        img.src = url.trim();
+    } else {
+        img.src = '/images/default-avatar.png';
+    }
+}
+
+// Xác nhận trước khi thay đổi thông tin (Yêu cầu 5)
+function confirmUpdateProfile(e) {
+    if (!confirm('Bạn có chắc chắn muốn lưu các thay đổi cho thông tin tài khoản?')) {
+        e.preventDefault();
+        return false;
+    }
+    return true;
+}
+
+// Xác nhận trước khi xóa vĩnh viễn tài khoản (Yêu cầu 5)
+function confirmDeleteAccount() {
+    if (confirm('CẢNH BÁO QUAN TRỌNG: Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản của mình? Tất cả đơn hàng và thông tin liên quan sẽ bị xóa và không thể khôi phục!')) {
+        document.getElementById('deleteAccountForm').submit();
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

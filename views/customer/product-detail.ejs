@@ -1,0 +1,559 @@
+<%- include('../partials/header') %>
+
+<!-- Breadcrumb Shopee Mall (Hình 6) -->
+<div class="max-w-7xl mx-auto px-4 py-3 text-xs text-gray-500 flex items-center space-x-1.5">
+    <a href="/" class="text-blue-900 hover:underline">Shopee</a>
+    <span>&gt;</span>
+    <a href="/?cat=<%= product.CATEGORY_ID %>" class="text-blue-900 hover:underline"><%= product.CATEGORY_NAME %></a>
+    <span>&gt;</span>
+    <span class="text-gray-700 truncate max-w-md"><%= product.PRODUCT_NAME %></span>
+</div>
+
+<% if (msg) { %>
+    <div class="max-w-7xl mx-auto px-4 mb-4">
+        <div class="p-3 bg-green-50 border border-green-200 text-green-700 rounded text-xs flex items-center">
+            <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+        </div>
+    </div>
+<% } %>
+
+<!-- Main Product Box (Hình 6) -->
+<div class="max-w-7xl mx-auto px-4 mb-6">
+    <div class="bg-white rounded-sm shadow-sm p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
+        <!-- Cột Trái: Ảnh Sản Phẩm & Thumbnails -->
+        <div class="md:col-span-5">
+            <div class="h-96 bg-gray-50 rounded overflow-hidden relative border border-gray-100 flex items-center justify-center">
+                <img id="mainProductImage" src="<%= (product.variants && product.variants[0] && product.variants[0].IMAGE_URL) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600' %>" class="w-full h-full object-contain">
+            </div>
+
+            <!-- Chia sẻ & Yêu thích -->
+            <div class="mt-4 flex items-center justify-between text-xs text-gray-600 px-2">
+                <div class="flex items-center space-x-2">
+                    <span>Chia sẻ:</span>
+                    <i class="fa-brands fa-facebook-messenger text-blue-500 text-base cursor-pointer"></i>
+                    <i class="fa-brands fa-facebook text-blue-700 text-base cursor-pointer"></i>
+                    <i class="fa-brands fa-pinterest text-red-600 text-base cursor-pointer"></i>
+                </div>
+                <button type="button" onclick="toggleFavoriteDetail(<%= product.PRODUCT_ID %>)" id="btnFavDetail" class="flex items-center text-red-500 hover:opacity-80 transition cursor-pointer">
+                    <i id="favIconDetail" class="<%= isFavorite ? 'fa-solid' : 'fa-regular' %> fa-heart mr-1.5 text-base text-red-500"></i>
+                    <span>Đã thích (<strong id="favCountDetail"><%= favoriteCount || 0 %></strong>)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cột Phải: Thông tin chi tiết, Chọn biến thể & Thêm giỏ hàng -->
+        <div class="md:col-span-7 flex flex-col justify-between">
+            <div>
+                <!-- Title & Shopee Mall Badge -->
+                <h1 class="text-xl font-medium text-gray-900 leading-snug">
+                    <span class="bg-[#d0011b] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-xs mr-1.5">Mall</span>
+                    <%= product.PRODUCT_NAME %>
+                </h1>
+
+                <!-- Đánh giá, Số sao, Đã bán chuẩn Shopee (Hình 6) -->
+                <div class="flex items-center space-x-4 text-xs mt-3 pb-3 border-b border-gray-100 text-gray-500">
+                    <div class="flex items-center text-[#ee4d2d]">
+                        <span class="font-bold border-b border-[#ee4d2d] mr-1 text-sm"><%= product.AVG_RATING || '5.0' %></span>
+                        <div class="text-[11px] space-x-0.5">
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                    </div>
+                    <span class="text-gray-300">|</span>
+                    <div>
+                        <span class="font-bold text-gray-900 underline"><%= product.reviews ? product.reviews.length : 0 %></span> Đánh Giá
+                    </div>
+                    <span class="text-gray-300">|</span>
+                    <div>
+                        <span class="font-bold text-gray-900"><%= Number(product.SOLD_COUNT || 0).toLocaleString('vi-VN') %></span> Đã Bán
+                    </div>
+                </div>
+
+                <!-- Khung Giá Sản Phẩm -->
+                <div class="bg-[#fafafa] p-4 rounded mt-3">
+                    <div class="flex items-center space-x-3">
+                        <span id="displayPrice" class="text-3xl font-bold text-[#ee4d2d]">
+                            ₫<%= Number(product.variants[0]?.PRICE || 0).toLocaleString('vi-VN') %>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Vận chuyển & Cam kết chuẩn Shopee -->
+                <div class="mt-4 space-y-3 text-xs text-gray-600">
+                    <div class="flex items-start">
+                        <span class="w-28 text-gray-500 shrink-0">Vận Chuyển</span>
+                        <div>
+                            <div class="flex items-center text-gray-800 font-medium">
+                                <i class="fa-solid fa-truck-fast text-emerald-600 mr-2 text-sm"></i>
+                                <span>Miễn phí vận chuyển cho đơn hàng từ ₫0</span>
+                            </div>
+                            <div class="text-gray-400 text-[11px] mt-0.5">Vận chuyển từ: Kho Tổng Shopee Quận 9 (Oracle 23ai FEFO)</div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <span class="w-28 text-gray-500 shrink-0">Bảo Hiểm</span>
+                        <span class="text-gray-800">Bảo hiểm Thiệt hại sản phẩm <a href="#" class="text-blue-600 ml-1">Tìm hiểu thêm</a></span>
+                    </div>
+                </div>
+
+                <!-- Form chọn biến thể & Thêm giỏ hàng có hiệu ứng (Yêu cầu 9) -->
+                <form id="productAddToCartForm" onsubmit="handleAddToCartFly(event)" class="mt-6 space-y-4 text-xs">
+                    <input type="hidden" name="productId" value="<%= product.PRODUCT_ID %>">
+                    <input type="hidden" name="productName" value="<%= product.PRODUCT_NAME %>">
+                    <input type="hidden" id="selectedSku" name="sku" value="<%= product.variants[0]?.SKU %>">
+                    <input type="hidden" id="selectedVariantName" name="variantName" value="<%= product.variants[0]?.VARIANT_NAME %>">
+                    <input type="hidden" id="selectedPrice" name="price" value="<%= product.variants[0]?.PRICE || 28000 %>">
+                    <input type="hidden" id="selectedImageUrl" name="imageUrl" value="<%= product.variants[0]?.IMAGE_URL %>">
+
+                    <!-- Danh sách Phân loại SKU (Hình 6) -->
+                    <div class="flex items-start">
+                        <span class="w-28 text-gray-500 shrink-0 pt-2">Phân Loại</span>
+                        <div class="flex flex-wrap gap-2">
+                            <% product.variants.forEach((v, idx) => { %>
+                                <button type="button" 
+                                    onclick="selectSkuVariant('<%= v.SKU %>', '<%= v.VARIANT_NAME %>', <%= v.PRICE %>, '<%= v.IMAGE_URL %>', <%= v.STOCK_QUANTITY %>)"
+                                    class="sku-choice-btn px-3 py-2 border rounded text-xs transition <%= idx === 0 ? 'border-[#ee4d2d] text-[#ee4d2d] bg-orange-50 font-bold' : 'border-gray-300 text-gray-800 hover:border-[#ee4d2d]' %>">
+                                    <%= v.VARIANT_NAME %>
+                                </button>
+                            <% }) %>
+                        </div>
+                    </div>
+
+                    <!-- Số lượng & Tồn kho (Yêu cầu 2: Chưa nhập kho = Tạm thời hết hàng) -->
+                    <div class="flex items-center">
+                        <span class="w-28 text-gray-500 shrink-0">Số Lượng</span>
+                        <div class="flex items-center space-x-3">
+                            <div id="qtySelectorGroup" class="flex items-center border border-gray-300 rounded overflow-hidden <%= (product.TOTAL_STOCK <= 0 || (product.variants[0]?.STOCK_QUANTITY || 0) <= 0) ? 'opacity-40 pointer-events-none' : '' %>">
+                                <button type="button" onclick="adjustQty(-1)" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600">-</button>
+                                <input type="number" id="buyQuantity" name="quantity" value="1" min="1" max="<%= product.variants[0]?.STOCK_QUANTITY || 0 %>" class="w-12 text-center text-xs py-1 focus:outline-none">
+                                <button type="button" onclick="adjustQty(1)" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600">+</button>
+                            </div>
+                            <span id="stockDisplay" class="text-xs">
+                                <% if (Number(product.TOTAL_STOCK || 0) <= 0 || Number(product.variants[0]?.STOCK_QUANTITY || 0) <= 0) { %>
+                                    <span class="text-red-500 font-bold bg-red-50 px-2.5 py-1 rounded border border-red-200 inline-flex items-center">
+                                        <i class="fa-solid fa-circle-exclamation mr-1.5"></i> Tạm thời hết hàng
+                                    </span>
+                                <% } else { %>
+                                    <span class="text-gray-500">
+                                        <strong class="text-gray-800"><%= Number(product.variants[0]?.STOCK_QUANTITY || 0).toLocaleString('vi-VN') %></strong> sản phẩm có sẵn
+                                    </span>
+                                <% } %>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Nút Thao tác: Có hàng -> Mua/Thêm; Hết hàng -> Nút Tạm thời hết hàng (Yêu cầu 2) -->
+                    <div id="purchaseActionGroup" class="pt-4">
+                        <% if (Number(product.TOTAL_STOCK || 0) <= 0 || Number(product.variants[0]?.STOCK_QUANTITY || 0) <= 0) { %>
+                            <div class="flex items-center space-x-3">
+                                <div class="px-8 py-3.5 bg-gray-100 border border-gray-300 text-gray-500 font-bold rounded-sm flex items-center cursor-not-allowed shadow-inner text-sm">
+                                    <i class="fa-solid fa-box-open mr-2 text-base text-gray-400"></i> HẾT HÀNG TẠM THỜI
+                                </div>
+                                <span class="text-xs text-gray-400 italic">Vui lòng chờ đợt nhập kho tiếp theo hoặc chọn phân loại khác</span>
+                            </div>
+                        <% } else { %>
+                            <div class="flex items-center space-x-4">
+                                <button type="submit" id="btnAddToCart" class="px-6 py-3 bg-[#ffeee8] border border-[#ee4d2d] text-[#ee4d2d] hover:bg-[#fff5f1] font-bold rounded-sm flex items-center shadow-sm">
+                                    <i class="fa-solid fa-cart-plus mr-2 text-base"></i> Thêm Vào Giỏ Hàng
+                                </button>
+                                <button type="button" onclick="buyNowDirect()" class="px-10 py-3 bg-[#ee4d2d] hover:bg-[#d73211] text-white font-bold rounded-sm shadow-sm">
+                                    Mua Ngay
+                                </button>
+                            </div>
+                        <% } %>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Cam kết Shopee Mall cuối card -->
+            <div class="mt-8 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+                <span class="flex items-center"><i class="fa-solid fa-rotate-left text-[#ee4d2d] mr-1.5"></i> 7 ngày miễn phí trả hàng</span>
+                <span class="flex items-center"><i class="fa-solid fa-shield-halved text-[#ee4d2d] mr-1.5"></i> Hàng chính hãng 100%</span>
+                <span class="flex items-center"><i class="fa-solid fa-truck text-[#ee4d2d] mr-1.5"></i> Miễn phí vận chuyển</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Shop Profile Card (Hình 7) -->
+<div class="max-w-7xl mx-auto px-4 mb-6">
+    <div class="bg-white rounded-sm shadow-sm p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-4">
+            <img src="/images/default-avatar.png" class="w-16 h-16 rounded-full border border-gray-200 object-cover">
+            <div>
+                <h3 class="font-bold text-gray-900 text-sm flex items-center">
+                    <%= product.SHOP_NAME %>
+                    <span class="ml-2 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold">Mall</span>
+                </h3>
+                <p class="text-xs text-gray-400 mt-0.5">Online 2 phút trước</p>
+                <div class="flex space-x-2 mt-2">
+                    <button onclick="toggleChatWindow()" class="px-3 py-1 bg-[#ee4d2d] text-white text-xs rounded-sm font-semibold flex items-center">
+                        <i class="fa-solid fa-comment-dots mr-1"></i> Chat Ngay
+                    </button>
+                    <a href="/?q=<%= encodeURIComponent(product.SHOP_NAME) %>" class="px-3 py-1 border border-gray-300 text-gray-700 text-xs rounded-sm hover:bg-gray-50 flex items-center">
+                        <i class="fa-solid fa-store mr-1"></i> Xem Shop
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-6 text-xs text-gray-500 border-l border-gray-100 pl-6">
+            <div>
+                <div>Đánh Giá: <strong class="text-[#ee4d2d]">226.1k</strong></div>
+                <div class="mt-2">Sản Phẩm: <strong class="text-[#ee4d2d]">86</strong></div>
+            </div>
+            <div>
+                <div>Tỉ Lệ Phản Hồi: <strong class="text-[#ee4d2d]">100%</strong></div>
+                <div class="mt-2">Thời Gian Phản Hồi: <strong class="text-[#ee4d2d]">trong vài giờ</strong></div>
+            </div>
+            <div>
+                <div>Tham Gia: <strong class="text-[#ee4d2d]">5 năm trước</strong></div>
+                <div class="mt-2">Người Theo Dõi: <strong class="text-[#ee4d2d]">74.3k</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CHI TIẾT SẢN PHẨM & MÔ TẢ (Hình 8 & 9) -->
+<div class="max-w-7xl mx-auto px-4 mb-6">
+    <div class="bg-white rounded-sm shadow-sm p-6 space-y-6">
+        <div>
+            <h3 class="bg-[#fafafa] p-3 text-xs font-bold text-gray-800 uppercase tracking-wider mb-4">
+                CHI TIẾT SẢN PHẨM
+            </h3>
+            <div class="space-y-3 text-xs text-gray-700 max-w-2xl">
+                <div class="flex"><span class="w-36 text-gray-400">Danh Mục:</span><span class="text-blue-900"><%= product.CATEGORY_NAME %></span></div>
+                <div class="flex"><span class="w-36 text-gray-400">Kho hàng:</span><span>Khu Công Nghệ Cao, TP. Thủ Đức</span></div>
+                <div class="flex"><span class="w-36 text-gray-400">Gửi từ:</span><span>TP. Hồ Chí Minh</span></div>
+                <div class="flex"><span class="w-36 text-gray-400">Bảo quản:</span><span>Chuẩn nhiệt độ kho mát theo tiêu chuẩn FEFO</span></div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="bg-[#fafafa] p-3 text-xs font-bold text-gray-800 uppercase tracking-wider mb-4">
+                MÔ TẢ SẢN PHẨM
+            </h3>
+            <div class="text-xs text-gray-700 leading-relaxed space-y-3">
+                <p><strong><%= product.PRODUCT_NAME %></strong> - Sản phẩm chính hãng phân phối tại hệ thống Shopee Logistics Hub.</p>
+                <p>✔ Quản lý tồn kho tự động với cơ chế FEFO (First-Expired, First-Out) bảo đảm Date luôn mới nhất khi xuất kho.</p>
+                <p>✔ Kiểm tra nghiêm ngặt hạn sử dụng bằng Oracle Database Trigger trước khi nhập kho.</p>
+                <p>✔ Đóng gói cẩn thận, hỗ trợ đổi trả trong vòng 7 ngày nếu có lỗi từ nhà sản xuất.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ĐÁNH GIÁ SẢN PHẨM & BÌNH LUẬN (Hình 10 & 11 - Yêu cầu 13) -->
+<div id="productRatingsSection" class="max-w-7xl mx-auto px-4 mb-8">
+    <div class="bg-white rounded-sm shadow-sm p-6">
+        <h3 class="text-base font-bold text-gray-800 uppercase mb-4">
+            ĐÁNH GIÁ SẢN PHẨM
+        </h3>
+
+        <!-- Rating Overview (Chuẩn Shopee: Bộ lọc Tất cả, 5, 4, 3, 2, 1 Sao, Có Bình Luận) -->
+        <% 
+            const reviewsList = product.reviews || [];
+            const totalReviewsCount = reviewsList.length;
+            const count5Star = reviewsList.filter(r => Math.round(Number(r.RATING)) === 5).length;
+            const count4Star = reviewsList.filter(r => Math.round(Number(r.RATING)) === 4).length;
+            const count3Star = reviewsList.filter(r => Math.round(Number(r.RATING)) === 3).length;
+            const count2Star = reviewsList.filter(r => Math.round(Number(r.RATING)) === 2).length;
+            const count1Star = reviewsList.filter(r => Math.round(Number(r.RATING)) === 1).length;
+            const countWithComment = reviewsList.filter(r => r.COMMENT_TEXT && r.COMMENT_TEXT.trim().length > 0).length;
+
+            let averageStars = 5.0;
+            if (totalReviewsCount > 0) {
+                const sumStars = reviewsList.reduce((sum, r) => sum + Number(r.RATING || 5), 0);
+                averageStars = (sumStars / totalReviewsCount).toFixed(1);
+            }
+        %>
+        <div class="bg-[#fffbf8] border border-[#f9ede5] p-6 rounded flex flex-col sm:flex-row items-center sm:space-x-8 mb-6 gap-4">
+            <div class="text-center shrink-0">
+                <div class="text-3xl font-bold text-[#ee4d2d]">
+                    <%= averageStars %> <span class="text-base font-normal text-gray-600">trên 5</span>
+                </div>
+                <div class="text-[#ee4d2d] text-base mt-1.5 flex justify-center space-x-0.5">
+                    <% for(let s = 1; s <= 5; s++) { %>
+                        <i class="fa-solid fa-star <%= s <= Math.round(averageStars) ? 'text-[#ee4d2d]' : 'text-gray-300' %>"></i>
+                    <% } %>
+                </div>
+                <div class="text-[11px] text-gray-500 mt-1"><%= totalReviewsCount %> đánh giá</div>
+            </div>
+            
+            <!-- Bộ lọc sao và bình luận -->
+            <div class="flex flex-wrap gap-2 text-xs">
+                <button type="button" onclick="filterReviewsByStar('all', this)" class="review-filter-btn px-4 py-1.5 border border-[#ee4d2d] text-[#ee4d2d] bg-white rounded-sm font-semibold shadow-xs">
+                    Tất Cả (<%= totalReviewsCount %>)
+                </button>
+                <button type="button" onclick="filterReviewsByStar(5, this)" class="review-filter-btn px-4 py-1.5 border border-gray-200 text-gray-700 bg-white rounded-sm hover:border-[#ee4d2d] transition">
+                    5 Sao (<%= count5Star %>)
+                </button>
+                <button type="button" onclick="filterReviewsByStar(4, this)" class="review-filter-btn px-4 py-1.5 border border-gray-200 text-gray-700 bg-white rounded-sm hover:border-[#ee4d2d] transition">
+                    4 Sao (<%= count4Star %>)
+                </button>
+                <button type="button" onclick="filterReviewsByStar(3, this)" class="review-filter-btn px-4 py-1.5 border border-gray-200 text-gray-700 bg-white rounded-sm hover:border-[#ee4d2d] transition">
+                    3 Sao (<%= count3Star %>)
+                </button>
+                <button type="button" onclick="filterReviewsByStar(2, this)" class="review-filter-btn px-4 py-1.5 border border-gray-200 text-gray-700 bg-white rounded-sm hover:border-[#ee4d2d] transition">
+                    2 Sao (<%= count2Star %>)
+                </button>
+                <button type="button" onclick="filterReviewsByStar(1, this)" class="review-filter-btn px-4 py-1.5 border border-gray-200 text-gray-700 bg-white rounded-sm hover:border-[#ee4d2d] transition">
+                    1 Sao (<%= count1Star %>)
+                </button>
+                <button type="button" onclick="filterReviewsByStar('comment', this)" class="review-filter-btn px-4 py-1.5 border border-gray-200 text-gray-700 bg-white rounded-sm hover:border-[#ee4d2d] transition">
+                    Có Bình Luận (<%= countWithComment %>)
+                </button>
+            </div>
+        </div>
+
+        <!-- Danh Sách Bình Luận (Hình 10 & 11) -->
+        <div id="reviewsContainer" class="divide-y divide-gray-100 text-xs">
+            <% if (!product.reviews || product.reviews.length === 0) { %>
+                <div class="py-8 text-center text-gray-400" id="emptyReviewsNotice">
+                    <i class="fa-regular fa-comment-dots text-3xl mb-2 text-gray-300"></i>
+                    <p>Chưa có đánh giá nào cho sản phẩm này.</p>
+                </div>
+            <% } else { %>
+                <% product.reviews.forEach(r => { %>
+                    <div id="review-<%= r.REVIEW_ID %>" data-review-star="<%= Math.round(Number(r.RATING || 5)) %>" data-has-comment="<%= (r.COMMENT_TEXT && r.COMMENT_TEXT.trim().length > 0) ? 'true' : 'false' %>" class="review-item-card py-4 flex space-x-3 transition-colors duration-500 <%= targetReviewId == r.REVIEW_ID ? 'bg-orange-50/80 p-3 rounded-lg border border-orange-200' : '' %>">
+                        <img src="<%= r.AVATAR || '/images/default-avatar.png' %>" class="w-10 h-10 rounded-full object-cover border border-gray-200 shrink-0">
+                        <div class="flex-1">
+                            <div class="font-bold text-gray-900"><%= r.FULL_NAME %> (<%= r.USERNAME %>)</div>
+                            <div class="text-[#ee4d2d] text-[11px] my-1">
+                                <% for(let i=1; i<=Math.floor(r.RATING || 5); i++) { %>
+                                    <i class="fa-solid fa-star"></i>
+                                <% } %>
+                                <% for(let i=Math.floor(r.RATING || 5) + 1; i<=5; i++) { %>
+                                    <i class="fa-regular fa-star text-gray-300"></i>
+                                <% } %>
+                            </div>
+                            <div class="text-[11px] text-gray-400"><%= r.REVIEW_DATE %> | Phân loại hàng: <%= r.VARIANT_NAME || 'Chuẩn' %></div>
+                            <p class="text-gray-800 mt-2 text-xs leading-relaxed"><%= r.COMMENT_TEXT %></p>
+                            <div class="mt-2 flex items-center text-gray-400 text-[11px] space-x-1 cursor-pointer hover:text-gray-600">
+                                <i class="fa-regular fa-thumbs-up"></i>
+                                <span>Hữu ích (12)</span>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+                <div id="noMatchingReviews" class="py-8 text-center text-gray-400 hidden">
+                    <i class="fa-regular fa-face-meh text-3xl mb-2 text-gray-300"></i>
+                    <p>Không có đánh giá nào cho bộ lọc này.</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- SẢN PHẨM TƯƠNG TỰ TỪ CÙNG SHOP (Hình 11) -->
+<div class="max-w-7xl mx-auto px-4 mb-12">
+    <div class="bg-white rounded-sm shadow-sm p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xs font-bold text-gray-600 uppercase tracking-wider">CÁC SẢN PHẨM KHÁC CỦA SHOP</h3>
+            <a href="/" class="text-xs text-[#ee4d2d] hover:underline">Xem Tất Cả &gt;</a>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <% shopProducts.forEach(sp => { %>
+                <a href="/product/<%= sp.PRODUCT_ID %>" class="flex flex-col p-2 border border-gray-100 hover:shadow transition">
+                    <img src="<%= sp.MAIN_IMAGE %>" class="w-full h-32 object-cover rounded mb-2">
+                    <h5 class="text-xs text-gray-800 truncate"><%= sp.PRODUCT_NAME %></h5>
+                    <div class="text-xs font-bold text-[#ee4d2d] mt-1">₫<%= Number(sp.MIN_PRICE || 28000).toLocaleString('vi-VN') %></div>
+                </a>
+            <% }) %>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bộ lọc đánh giá theo số sao (5, 4, 3, 2, 1) & có bình luận
+function filterReviewsByStar(star, btn) {
+    document.querySelectorAll('.review-filter-btn').forEach(b => {
+        b.classList.remove('border-[#ee4d2d]', 'text-[#ee4d2d]', 'font-semibold', 'shadow-xs');
+        b.classList.add('border-gray-200', 'text-gray-700');
+    });
+    btn.classList.add('border-[#ee4d2d]', 'text-[#ee4d2d]', 'font-semibold', 'shadow-xs');
+    btn.classList.remove('border-gray-200', 'text-gray-700');
+
+    const cards = document.querySelectorAll('.review-item-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const cardStar = card.getAttribute('data-review-star');
+        const hasComment = card.getAttribute('data-has-comment') === 'true';
+
+        if (star === 'all') {
+            card.style.display = 'flex';
+            visibleCount++;
+        } else if (star === 'comment') {
+            if (hasComment) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        } else {
+            if (cardStar == star) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        }
+    });
+
+    const noMatching = document.getElementById('noMatchingReviews');
+    if (noMatching) {
+        if (visibleCount === 0 && cards.length > 0) {
+            noMatching.classList.remove('hidden');
+        } else {
+            noMatching.classList.add('hidden');
+        }
+    }
+}
+
+let currentVariantStock = <%= product.variants[0]?.STOCK_QUANTITY || 0 %>;
+
+function selectSkuVariant(sku, name, price, img, stock) {
+    currentVariantStock = Number(stock || 0);
+    document.getElementById('selectedSku').value = sku;
+    document.getElementById('selectedVariantName').value = name;
+    document.getElementById('selectedPrice').value = price;
+    if (img) {
+        document.getElementById('selectedImageUrl').value = img;
+        document.getElementById('mainProductImage').src = img;
+    }
+    document.getElementById('displayPrice').innerText = '₫' + Number(price).toLocaleString('vi-VN');
+
+    const stockDisplay = document.getElementById('stockDisplay');
+    const actionGroup = document.getElementById('purchaseActionGroup');
+    const qtySelector = document.getElementById('qtySelectorGroup');
+    const buyQtyInput = document.getElementById('buyQuantity');
+
+    if (currentVariantStock <= 0) {
+        stockDisplay.innerHTML = '<span class="text-red-500 font-bold bg-red-50 px-2.5 py-1 rounded border border-red-200 inline-flex items-center"><i class="fa-solid fa-circle-exclamation mr-1.5"></i> Tạm thời hết hàng</span>';
+        if (qtySelector) qtySelector.classList.add('opacity-40', 'pointer-events-none');
+        if (actionGroup) {
+            actionGroup.innerHTML = '<div class="flex items-center space-x-3"><div class="px-8 py-3.5 bg-gray-100 border border-gray-300 text-gray-500 font-bold rounded-sm flex items-center cursor-not-allowed shadow-inner text-sm"><i class="fa-solid fa-box-open mr-2 text-base text-gray-400"></i> HẾT HÀNG TẠM THỜI</div><span class="text-xs text-gray-400 italic">Vui lòng chờ đợt nhập kho tiếp theo hoặc chọn phân loại khác</span></div>';
+        }
+    } else {
+        stockDisplay.innerHTML = '<span class="text-gray-500"><strong class="text-gray-800">' + Number(currentVariantStock).toLocaleString('vi-VN') + '</strong> sản phẩm có sẵn</span>';
+        if (qtySelector) qtySelector.classList.remove('opacity-40', 'pointer-events-none');
+        if (buyQtyInput) buyQtyInput.max = currentVariantStock;
+        if (actionGroup) {
+            actionGroup.innerHTML = '<div class="flex items-center space-x-4"><button type="submit" id="btnAddToCart" class="px-6 py-3 bg-[#ffeee8] border border-[#ee4d2d] text-[#ee4d2d] hover:bg-[#fff5f1] font-bold rounded-sm flex items-center shadow-sm"><i class="fa-solid fa-cart-plus mr-2 text-base"></i> Thêm Vào Giỏ Hàng</button><button type="button" onclick="buyNowDirect()" class="px-10 py-3 bg-[#ee4d2d] hover:bg-[#d73211] text-white font-bold rounded-sm shadow-sm">Mua Ngay</button></div>';
+        }
+    }
+
+    document.querySelectorAll('.sku-choice-btn').forEach(b => {
+        b.classList.remove('border-[#ee4d2d]', 'text-[#ee4d2d]', 'bg-orange-50', 'font-bold');
+        b.classList.add('border-gray-300', 'text-gray-800');
+    });
+    event.currentTarget.classList.add('border-[#ee4d2d]', 'text-[#ee4d2d]', 'bg-orange-50', 'font-bold');
+    event.currentTarget.classList.remove('border-gray-300', 'text-gray-800');
+}
+
+// Xử lý nút yêu thích đồng bộ trạng thái (Yêu cầu 3)
+async function toggleFavoriteDetail(productId) {
+    try {
+        const res = await fetch('/api/favorite/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId })
+        });
+        if (res.status === 401) {
+            if (confirm('Vui lòng đăng nhập để lưu sản phẩm yêu thích. Chuyển đến trang Đăng nhập?')) {
+                window.location.href = '/login?redirect=/product/' + productId;
+            }
+            return;
+        }
+        const data = await res.json();
+        if (data.success) {
+            const icon = document.getElementById('favIconDetail');
+            const count = document.getElementById('favCountDetail');
+            if (data.isFavorite) {
+                icon.className = 'fa-solid fa-heart mr-1.5 text-base text-red-500 animate-bounce';
+                setTimeout(() => icon.classList.remove('animate-bounce'), 1000);
+            } else {
+                icon.className = 'fa-regular fa-heart mr-1.5 text-base text-red-500';
+            }
+            if (count) count.innerText = data.count;
+        }
+    } catch(err) {
+        console.error('Lỗi toggle favorite:', err);
+    }
+}
+
+function adjustQty(n) {
+    const input = document.getElementById('buyQuantity');
+    let val = parseInt(input.value) + n;
+    if (val < 1) val = 1;
+    input.value = val;
+}
+
+// Xử lý hiệu ứng sản phẩm bay vào giỏ hàng (Yêu cầu 9)
+async function handleAddToCartFly(e) {
+    e.preventDefault();
+    const form = document.getElementById('productAddToCartForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+
+    const mainImg = document.getElementById('mainProductImage');
+    const cartIcon = document.getElementById('headerCartBtn');
+
+    if (mainImg && cartIcon) {
+        const startRect = mainImg.getBoundingClientRect();
+        const endRect = cartIcon.getBoundingClientRect();
+
+        const flyingImg = document.createElement('img');
+        flyingImg.src = mainImg.src;
+        flyingImg.className = 'fly-item';
+        flyingImg.style.top = startRect.top + 'px';
+        flyingImg.style.left = startRect.left + 'px';
+        document.body.appendChild(flyingImg);
+
+        setTimeout(() => {
+            flyingImg.style.top = (endRect.top + 5) + 'px';
+            flyingImg.style.left = (endRect.left + 5) + 'px';
+            flyingImg.style.transform = 'scale(0.2)';
+            flyingImg.style.opacity = '0.5';
+        }, 20);
+
+        setTimeout(() => {
+            flyingImg.remove();
+            cartIcon.classList.add('cart-bump');
+            setTimeout(() => cartIcon.classList.remove('cart-bump'), 400);
+        }, 820);
+    }
+
+    // Gửi request ngầm
+    const res = await fetch('/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: params.toString()
+    });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('headerCartCount').innerText = data.cartCount;
+    }
+}
+
+function buyNowDirect() {
+    const form = document.getElementById('productAddToCartForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+
+    fetch('/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+    }).then(() => {
+        window.location.href = '/checkout';
+    });
+}
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,232 @@
+<%- include('../partials/header') %>
+
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-sm shadow-sm p-6 mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+        <div>
+            <h1 class="text-xl font-bold text-gray-900 flex items-center">
+                <i class="fa-solid fa-box-archive mr-2 text-[#ee4d2d]"></i> Đơn Hàng Của Tôi
+            </h1>
+            <p class="text-xs text-gray-500 mt-1">Theo dõi vận chuyển, kiểm tra tình trạng hàng và viết đánh giá sản phẩm</p>
+        </div>
+        <div class="flex items-center space-x-2 text-xs">
+            <a href="/profile" class="px-3 py-1.5 bg-gray-100 hover:bg-orange-50 text-gray-700 hover:text-[#ee4d2d] rounded font-medium flex items-center transition">
+                <i class="fa-regular fa-user mr-1.5"></i> Thông Tin Của Tôi
+            </a>
+            <a href="/favorites" class="px-3 py-1.5 bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 rounded font-medium flex items-center transition">
+                <i class="fa-solid fa-heart mr-1.5 text-red-500"></i> Sản Phẩm Yêu Thích
+            </a>
+            <a href="/" class="text-xs text-[#ee4d2d] font-semibold hover:underline pl-2">&lt; Mua sắm</a>
+        </div>
+    </div>
+
+    <% if (msg) { %>
+        <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-xs flex items-center">
+            <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+        </div>
+    <% } %>
+
+    <% if (err) { %>
+        <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs flex items-center">
+            <i class="fa-solid fa-circle-exclamation mr-2"></i> <%= err %>
+        </div>
+    <% } %>
+
+    <div class="space-y-4">
+        <% if (!orders || orders.length === 0) { %>
+            <div class="bg-white rounded-sm p-12 text-center text-gray-400">
+                <i class="fa-regular fa-clipboard text-4xl mb-3 text-gray-300"></i>
+                <p>Chưa có đơn hàng nào.</p>
+            </div>
+        <% } else { %>
+            <% orders.forEach(o => { %>
+                <div class="bg-white rounded-sm shadow-sm border border-gray-100 p-6 space-y-4 text-xs">
+                    <!-- Header Đơn Hàng -->
+                    <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-gray-800">SPX Express</span>
+                            <span class="font-mono text-gray-500">#<%= o.ORDER_ID %></span>
+                            <span class="text-gray-300">|</span>
+                            <span class="text-gray-400"><%= o.SHIPPED_AT || 'Vừa tạo' %></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <% 
+                                let shipColor = "text-amber-600";
+                                let shipText = "Sẵn sàng giao";
+                                if (o.SHIPMENT_STATUS === 'IN_TRANSIT') {
+                                    shipColor = "text-blue-600";
+                                    shipText = "Đang giao hàng";
+                                } else if (o.SHIPMENT_STATUS === 'DELIVERED') {
+                                    shipColor = "text-emerald-600";
+                                    shipText = "ĐÃ GIAO THÀNH CÔNG";
+                                } else if (o.SHIPMENT_STATUS === 'CANCELLED') {
+                                    shipColor = "text-red-500";
+                                    shipText = "ĐÃ HỦY GIAO HÀNG";
+                                }
+
+                                let orderColor = "text-[#ee4d2d]";
+                                let orderText = o.STATUS;
+                                if (o.STATUS === 'PENDING') {
+                                    orderText = "CHỜ XỬ LÝ";
+                                } else if (o.STATUS === 'SHIPPED') {
+                                    orderText = "HOÀN THÀNH";
+                                } else if (o.STATUS === 'CANCELLED') {
+                                    orderColor = "text-red-600";
+                                    orderText = "ĐÃ HỦY ĐƠN";
+                                }
+                            %>
+                            <span class="<%= shipColor %> font-bold uppercase"><i class="fa-solid fa-truck-fast mr-1"></i><%= shipText %></span>
+                            <span class="text-gray-300">|</span>
+                            <span class="<%= orderColor %> font-bold uppercase"><%= orderText %></span>
+                        </div>
+                    </div>
+
+                    <!-- Danh sách sản phẩm trong đơn -->
+                    <div class="divide-y divide-gray-100">
+                        <% o.items.forEach(it => { %>
+                            <div class="py-3 flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <img src="<%= it.IMAGE_URL || '/images/default-avatar.png' %>" class="w-14 h-14 object-cover rounded border border-gray-100">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 text-sm"><%= it.PRODUCT_NAME %></h4>
+                                        <div class="text-gray-400 text-[11px] mt-0.5">Phân loại: <%= it.VARIANT_NAME %> (<%= it.SKU %>)</div>
+                                        <div class="text-gray-500 mt-1">x<%= it.QUANTITY %></div>
+                                    </div>
+                                </div>
+                                <div class="text-right space-y-2">
+                                    <div class="font-bold text-[#ee4d2d]">₫<%= (Number(it.UNIT_PRICE) * Number(it.QUANTITY)).toLocaleString('vi-VN') %></div>
+                                    
+                                    <!-- NÚT BÌNH LUẬN DUY NHẤT 1 LẦN (Chỉ cho phép khi đơn đã giao thành công) -->
+                                    <% if (it.REVIEW_ID) { %>
+                                        <!-- Đã bình luận -> Chuyển thành Xem bình luận và tự kéo màn hình xuống -->
+                                        <a href="/product/<%= it.PRODUCT_ID %>?reviewId=<%= it.REVIEW_ID %>#review-<%= it.REVIEW_ID %>" 
+                                           class="inline-block px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-sm font-semibold text-[11px]">
+                                            <i class="fa-regular fa-comment-dots mr-1 text-[#ee4d2d]"></i> Xem Đánh Giá
+                                        </a>
+                                    <% } else if (o.SHIPMENT_STATUS === 'DELIVERED' || o.STATUS === 'SHIPPED') { %>
+                                        <!-- Đơn đã giao thành công / xuất kho giao hoàn tất -> Cho phép đánh giá -->
+                                        <button onclick="openReviewModal(<%= o.ORDER_ID %>, <%= it.PRODUCT_ID %>, '<%= it.SKU %>', '<%= it.PRODUCT_NAME %>')" 
+                                                class="px-4 py-1.5 bg-[#ee4d2d] hover:bg-[#d73211] text-white rounded-sm font-bold text-[11px] shadow-sm">
+                                            <i class="fa-solid fa-star mr-1"></i> Đánh Giá Sản Phẩm
+                                        </button>
+                                    <% } else if (o.STATUS === 'CANCELLED') { %>
+                                        <span class="text-gray-400 text-[11px] italic">Đơn đã hủy</span>
+                                    <% } else { %>
+                                        <!-- Đơn chưa giao thành công -> Không cho đánh giá -->
+                                        <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-400 rounded-sm text-[11px] font-medium" title="Bạn chỉ có thể đánh giá sau khi đơn hàng đã được giao thành công">
+                                            <i class="fa-solid fa-clock mr-1 text-gray-400"></i> Chưa thể đánh giá
+                                        </span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+
+                    <!-- Footer Đơn Hàng -->
+                    <div class="pt-3 border-t border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center bg-[#fffefb] p-3 rounded gap-3">
+                        <div class="text-gray-500 text-[11px]">
+                            <i class="fa-solid fa-location-dot text-[#ee4d2d] mr-1"></i> Địa chỉ nhận: <strong><%= o.SHIPPING_ADDRESS %></strong>
+                        </div>
+                        <div class="flex items-center justify-end space-x-3">
+                            <div class="text-right mr-2">
+                                <span class="text-gray-500 text-xs">Thành tiền:</span>
+                                <span class="text-lg font-bold text-[#ee4d2d] ml-1">₫<%= Number(o.TOTAL_AMOUNT).toLocaleString('vi-VN') %></span>
+                            </div>
+
+                            <!-- Nút Xem Chi Tiết / Định Vị SPX Live -->
+                            <a href="/tracking/<%= o.ORDER_ID %>" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-sm font-semibold text-xs flex items-center shadow-sm">
+                                <i class="fa-solid fa-map-location-dot mr-1.5 text-blue-600"></i> Xem Chi Tiết
+                            </a>
+
+                            <!-- NÚT HỦY ĐƠN HÀNG (Yêu cầu: Khách được hủy khi đơn chưa chuyển sang 'Đang giao hàng' / 'IN_TRANSIT') -->
+                            <% 
+                                const canCancel = (o.STATUS !== 'SHIPPED' && o.STATUS !== 'CANCELLED' && o.SHIPMENT_STATUS !== 'IN_TRANSIT' && o.SHIPMENT_STATUS !== 'DELIVERED' && o.SHIPMENT_STATUS !== 'CANCELLED');
+                            %>
+                            <% if (canCancel) { %>
+                                <form action="/my-orders/cancel" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng #<%= o.ORDER_ID %> không? Sau khi hủy không thể hoàn tác.')">
+                                    <input type="hidden" name="orderId" value="<%= o.ORDER_ID %>">
+                                    <button type="submit" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-sm font-bold text-xs flex items-center transition shadow-sm">
+                                        <i class="fa-regular fa-rectangle-xmark mr-1.5"></i> Hủy Đơn Hàng
+                                    </button>
+                                </form>
+                            <% } else if (o.STATUS === 'CANCELLED') { %>
+                                <span class="px-2.5 py-1 bg-gray-100 text-gray-400 rounded-sm text-xs italic">Đã hủy đơn</span>
+                            <% } else { %>
+                                <span class="px-2.5 py-1 bg-gray-50 text-gray-400 rounded-sm text-xs italic" title="Đơn đã bàn giao vận chuyển, không thể hủy">Đang vận chuyển (Không thể hủy)</span>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        <% } %>
+    </div>
+</div>
+
+<!-- Modal Đánh Giá Sản Phẩm (Yêu cầu 13) -->
+<div id="modalProductReview" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-sm shadow-2xl max-w-md w-full p-6 relative">
+        <button onclick="document.getElementById('modalProductReview').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-1">Đánh Giá Sản Phẩm</h3>
+        <p id="reviewProdName" class="text-xs text-gray-500 mb-4 line-clamp-1"></p>
+
+        <form action="/product/review" method="POST" class="space-y-4 text-xs">
+            <input type="hidden" id="revOrderId" name="orderId">
+            <input type="hidden" id="revProductId" name="productId">
+            <input type="hidden" id="revSku" name="sku">
+
+            <!-- Chọn số sao -->
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Chất lượng sản phẩm:</label>
+                <div class="flex items-center space-x-2 text-xl text-amber-400 cursor-pointer">
+                    <i class="fa-solid fa-star star-rate" onclick="setRating(1)"></i>
+                    <i class="fa-solid fa-star star-rate" onclick="setRating(2)"></i>
+                    <i class="fa-solid fa-star star-rate" onclick="setRating(3)"></i>
+                    <i class="fa-solid fa-star star-rate" onclick="setRating(4)"></i>
+                    <i class="fa-solid fa-star star-rate" onclick="setRating(5)"></i>
+                    <span id="rateLabel" class="text-xs font-bold text-gray-600 ml-2">Tuyệt vời (5 sao)</span>
+                </div>
+                <input type="hidden" id="ratingInput" name="rating" value="5">
+            </div>
+
+            <!-- Nội dung đánh giá -->
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Để lại bình luận của bạn:</label>
+                <textarea name="commentText" rows="4" required placeholder="Hãy chia sẻ nhận xét của bạn về chất lượng sản phẩm, dịch vụ đóng gói và thời gian giao hàng..." class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none"></textarea>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalProductReview').classList.add('hidden')" class="px-4 py-2 border border-gray-300 text-gray-600 rounded-sm">Hủy</button>
+                <button type="submit" class="px-6 py-2 bg-[#ee4d2d] text-white font-bold rounded-sm hover:opacity-90">Hoàn Thành</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openReviewModal(orderId, prodId, sku, prodName) {
+    document.getElementById('revOrderId').value = orderId;
+    document.getElementById('revProductId').value = prodId;
+    document.getElementById('revSku').value = sku;
+    document.getElementById('reviewProdName').innerText = prodName;
+    document.getElementById('modalProductReview').classList.remove('hidden');
+}
+
+function setRating(n) {
+    document.getElementById('ratingInput').value = n;
+    const stars = document.querySelectorAll('.star-rate');
+    stars.forEach((s, idx) => {
+        if (idx < n) {
+            s.classList.remove('fa-regular', 'text-gray-300');
+            s.classList.add('fa-solid', 'text-amber-400');
+        } else {
+            s.classList.remove('fa-solid', 'text-amber-400');
+            s.classList.add('fa-regular', 'text-gray-300');
+        }
+    });
+    const labels = ['', 'Rất tệ (1 sao)', 'Tệ (2 sao)', 'Bình thường (3 sao)', 'Tốt (4 sao)', 'Tuyệt vời (5 sao)'];
+    document.getElementById('rateLabel').innerText = labels[n];
+}
+</script>
+
+<%- include('../partials/footer') %>

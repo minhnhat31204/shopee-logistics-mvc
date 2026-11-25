@@ -1,0 +1,504 @@
+<%- include('admin-layout-top') %>
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900">Quản Lý Sản Phẩm</h2>
+        <p class="text-xs text-gray-500">Khởi tạo thông tin sản phẩm, cập nhật trạng thái và điều hướng quản lý biến thể SKU.</p>
+    </div>
+    <div class="flex items-center space-x-2">
+        <button onclick="document.getElementById('modalCreateProduct').classList.remove('hidden')" class="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold shadow flex items-center">
+            <i class="fa-solid fa-plus mr-1.5"></i> Thêm Sản Phẩm Mới
+        </button>
+        <a href="/admin/variants" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow flex items-center">
+            <i class="fa-solid fa-tags mr-1.5"></i> Xem Danh Sách Biến Thể SKU
+        </a>
+    </div>
+</div>
+
+<% if (msg) { %>
+    <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+    </div>
+<% } %>
+
+<% if (err) { %>
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-exclamation mr-2"></i> <%= err %>
+    </div>
+<% } %>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    
+<!-- Thanh Tìm Kiếm Nhanh & Làm Mới (Yêu cầu 6) -->
+<div class="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3">
+    <div class="relative flex-1 max-w-md">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+        <input type="text" id="filterInput_adminProductsTable" onkeyup="filterTableRows('adminProductsTable', this.value)" placeholder="Tìm theo tên sản phẩm, gian hàng, danh mục, SKU..." class="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 shadow-sm">
+        <button type="button" onclick="clearTableFilter('adminProductsTable')" title="Xóa từ khóa & Làm mới" class="absolute right-2.5 top-2 text-gray-400 hover:text-red-600 text-xs">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    <div class="flex items-center space-x-2">
+        <span id="filterCount_adminProductsTable" class="text-[11px] text-gray-400"></span>
+        <button type="button" onclick="clearTableFilter('adminProductsTable')" class="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold shadow-sm flex items-center">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Làm mới
+        </button>
+    </div>
+</div>
+
+<div class="overflow-x-auto">
+        <table id="adminProductsTable" class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">ID</th>
+                    <th class="p-3">Tên Sản Phẩm</th>
+                    <th class="p-3">Gian Hàng Bán</th>
+                    <th class="p-3">Danh Mục</th>
+                    <th class="p-3">Biến Thể SKU</th>
+                    <th class="p-3">Khoảng Giá</th>
+                    <th class="p-3">Trạng Thái</th>
+                    <th class="p-3 text-right">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% products.forEach(p => { %>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-mono font-bold text-gray-500">#<%= p.PRODUCT_ID %></td>
+                        <td class="p-3">
+                            <div class="flex items-center space-x-2.5">
+                                <img src="<%= p.MAIN_IMAGE %>" class="w-9 h-9 object-cover rounded border border-gray-200">
+                                <div>
+                                    <div class="font-bold text-gray-900 text-sm"><%= p.PRODUCT_NAME %></div>
+                                    <div class="text-[10px] text-gray-400">Tạo ngày: <%= p.CREATED_AT %></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 bg-orange-50 text-orange-700 rounded font-medium">
+                                <i class="fa-solid fa-store mr-1 text-orange-500"></i><%= p.SHOP_NAME %>
+                            </span>
+                        </td>
+                        <td class="p-3 text-gray-700 font-medium"><%= p.CATEGORY_NAME %></td>
+                        <td class="p-3 font-semibold text-gray-800"><%= p.TOTAL_VARIANTS %> SKU</td>
+                        <td class="p-3 font-bold text-orange-600">
+                            <%= p.MIN_PRICE ? Number(p.MIN_PRICE).toLocaleString('vi-VN') + ' đ' : 'Chưa định giá' %>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold <%= p.STATUS === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' %>">
+                                <%= p.STATUS %>
+                            </span>
+                        </td>
+                        <!-- NÚT SỬA & XÓA & QUẢN LÝ SKU -->
+                        <td class="p-3 text-right space-x-1">
+                            <a href="/admin/variants?prodId=<%= p.PRODUCT_ID %>" class="px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded text-[11px] font-semibold inline-flex items-center" title="Xem & chỉnh sửa các biến thể của sản phẩm này">
+                                <i class="fa-solid fa-list-check mr-1"></i> Biến Thể (<%= p.TOTAL_VARIANTS %>)
+                            </a>
+                            <button onclick="openCreateVariantModal(<%= p.PRODUCT_ID %>, '<%= p.PRODUCT_NAME.replace(/'/g, "\\'") %>', <%= p.CATEGORY_ID %>)" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-semibold" title="Thêm biến thể SKU mới cho sản phẩm này">
+                                <i class="fa-solid fa-plus mr-1"></i> Thêm SKU
+                            </button>
+                            <button onclick="openEditProductModal(<%= p.PRODUCT_ID %>, '<%= p.PRODUCT_NAME.replace(/'/g, "\\'") %>', <%= p.CATEGORY_ID %>, '<%= p.STATUS %>', <%= p.MIN_PRICE || 0 %>, '<%= p.MAIN_IMAGE %>')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[11px] font-semibold">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa
+                            </button>
+                            <form action="/admin/products/delete" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa sản phẩm này? Hệ thống sẽ kiểm tra xem đã có đơn hàng liên quan chưa.')">
+                                <input type="hidden" name="productId" value="<%= p.PRODUCT_ID %>">
+                                <button type="submit" class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-semibold">
+                                    <i class="fa-solid fa-trash mr-1"></i> Xóa
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Thêm Sản Phẩm Mới -->
+<!-- MODAL 1: THÊM SẢN PHẨM MỚI (TÁCH RIÊNG KHÔNG KÈM BIẾN THỂ) -->
+<div id="modalCreateProduct" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+        <button onclick="document.getElementById('modalCreateProduct').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-1 flex items-center">
+            <i class="fa-solid fa-box text-orange-600 mr-2"></i> Khởi Tạo Sản Phẩm Mới
+        </h3>
+        <p class="text-xs text-gray-400 mb-4">Tạo thông tin sản phẩm trước, sau đó tạo các biến thể SKU phân loại hàng riêng biệt.</p>
+
+        <form action="/admin/products/create" method="POST" class="space-y-3.5 text-xs">
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Tên Sản Phẩm *</label>
+                <input type="text" name="productName" placeholder="VD: Sữa Chua Vinamilk Probi Men Sống" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Danh Mục Cha (Cấp 1) *</label>
+                    <select id="adminNewProdParentCat" name="parentCategoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 bg-white" onchange="onAdminNewProdParentChanged()">
+                        <option value="">-- Chọn danh mục cha --</option>
+                        <% categories.filter(c => !c.PARENT_CATEGORY_ID).forEach(c => { %>
+                            <option value="<%= c.CATEGORY_ID %>"><%= c.CATEGORY_NAME %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Danh Mục Con (Cấp 2) *</label>
+                    <select id="adminNewProdChildCat" name="subCategoryId" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition">
+                        <option value="">-- Chọn danh mục cha trước --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Gian Hàng Bán (Shop) *</label>
+                <select name="shopId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 bg-white">
+                    <% shops.forEach(s => { %>
+                        <option value="<%= s.SHOP_ID %>"><%= s.SHOP_NAME %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalCreateProduct').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold shadow">Khởi Tạo Sản Phẩm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 2: TẠO BIẾN THỂ SKU RIÊNG BIỆT (THEO THỨ TỰ TUẦN TỰ) -->
+<div id="modalCreateVariant" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+        <button onclick="document.getElementById('modalCreateVariant').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-1 flex items-center">
+            <i class="fa-solid fa-tags text-indigo-600 mr-2"></i> Tạo Biến Thể SKU Cho Sản Phẩm
+        </h3>
+        <p class="text-xs text-gray-400 mb-4">Quy trình lần lượt: Chọn Danh mục ➔ Chọn Sản phẩm ➔ Điền mã SKU & Quy cách.</p>
+
+        <form action="/admin/products/create-variant" method="POST" class="space-y-3.5 text-xs">
+            <div class="grid grid-cols-3 gap-2">
+                <!-- Bước 1: Chọn Danh mục cha -->
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">1</span>
+                        Danh Mục Cha *
+                    </label>
+                    <select id="varModalParentCatSelect" required class="w-full px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 bg-white" onchange="onVarParentCatChanged()">
+                        <option value="">-- Chọn DM Cha --</option>
+                        <% categories.filter(c => !c.PARENT_CATEGORY_ID).forEach(c => { %>
+                            <option value="<%= c.CATEGORY_ID %>"><%= c.CATEGORY_NAME %></option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <!-- Bước 2: Chọn Danh mục con -->
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">2</span>
+                        Danh Mục Con *
+                    </label>
+                    <select id="varModalCatSelect" required disabled class="w-full px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition" onchange="onVarCategoryChanged()">
+                        <option value="">-- Trước tiên chọn DM Cha --</option>
+                    </select>
+                </div>
+
+                <!-- Bước 3: Chọn Sản phẩm (chỉ hiện sản phẩm thuộc danh mục đã chọn) -->
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">3</span>
+                        Sản Phẩm *
+                    </label>
+                    <select name="productId" id="varModalProdSelect" required disabled class="w-full px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition">
+                        <option value="">-- Chọn DM Con trước --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
+                <p class="font-bold text-indigo-900 text-xs flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">3</span>
+                    Thông tin phân loại hàng (SKU)
+                </p>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Mã SKU Duy Nhất *</label>
+                        <input type="text" name="sku" placeholder="VD: VNM-PROBI-65ML" required class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono uppercase focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Tên Quy Cách / Phân Loại *</label>
+                        <input type="text" name="variantName" placeholder="VD: Lốc 5 chai x 65ml (Ít đường)" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Đơn Giá Bán (VNĐ) *</label>
+                        <input type="number" name="price" placeholder="32000" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">URL Hình Ảnh Đại Diện SKU</label>
+                        <input type="url" name="imageUrl" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalCreateVariant').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow">Thêm Biến Thể SKU</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Sửa Sản Phẩm (Yêu cầu 3) -->
+<div id="modalEditProduct" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+        <button onclick="document.getElementById('modalEditProduct').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <i class="fa-solid fa-pen-to-square text-amber-600 mr-2"></i> Chỉnh Sửa Thông Tin Sản Phẩm
+        </h3>
+
+        <form action="/admin/products/update" method="POST" class="space-y-3 text-xs">
+            <input type="hidden" id="editProdId" name="productId">
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Tên Sản Phẩm *</label>
+                <input type="text" id="editProdName" name="productName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Danh Mục *</label>
+                    <select id="editProdCat" name="categoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none">
+                        <% categories.forEach(c => { %>
+                            <option value="<%= c.CATEGORY_ID %>">
+                                <%= c.PARENT_NAME ? (c.PARENT_NAME + ' ➔ ' + c.CATEGORY_NAME) : (c.CATEGORY_NAME + ' (Danh mục gốc)') %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Trạng Thái *</label>
+                    <select id="editProdStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none">
+                        <option value="ACTIVE">ACTIVE (Đang bán)</option>
+                        <option value="INACTIVE">INACTIVE (Tạm ngưng)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                <p class="font-bold text-gray-700">Giá bán & Hình ảnh</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-600 mb-1">Đơn Giá Mới (VNĐ)</label>
+                        <input type="number" id="editProdPrice" name="price" min="0" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-600 mb-1">URL Hình Ảnh</label>
+                        <input type="url" id="editProdImage" name="imageUrl" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalEditProduct').classList.add('hidden')" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold">Lưu Cập Nhật</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditProductModal(id, name, catId, status, price, img) {
+    document.getElementById('editProdId').value = id;
+    document.getElementById('editProdName').value = name;
+    document.getElementById('editProdCat').value = catId;
+    document.getElementById('editProdStatus').value = status || 'ACTIVE';
+    document.getElementById('editProdPrice').value = price || '';
+    document.getElementById('editProdImage').value = img || '';
+    document.getElementById('modalEditProduct').classList.remove('hidden');
+}
+</script>
+
+<%- include('admin-layout-bottom') %>
+
+<script>
+function filterTableRows(tableId, query) {
+    query = (query || '').toLowerCase().trim();
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+    rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        if (text.includes(query)) {
+            r.style.display = '';
+            visibleCount++;
+        } else {
+            r.style.display = 'none';
+        }
+    });
+    const countEl = document.getElementById('filterCount_' + tableId);
+    if (countEl) {
+        countEl.innerText = query ? ('Hiển thị: ' + visibleCount + '/' + rows.length) : '';
+    }
+}
+
+function clearTableFilter(tableId) {
+    const input = document.getElementById('filterInput_' + tableId);
+    if (input) input.value = '';
+    filterTableRows(tableId, '');
+}
+</script>
+
+<script>
+const adminAllCategories = <%- JSON.stringify(typeof categories !== 'undefined' ? categories : []) %>;
+const adminAllProducts = <%- JSON.stringify(typeof products !== 'undefined' ? products : []) %>;
+
+// 1. Khi chọn Danh mục cha trong Modal 1 (Khởi Tạo Sản Phẩm Mới)
+function onAdminNewProdParentChanged() {
+    const parentSelect = document.getElementById('adminNewProdParentCat');
+    const childSelect = document.getElementById('adminNewProdChildCat');
+    if (!parentSelect || !childSelect) return;
+
+    const parentId = Number(parentSelect.value);
+    childSelect.innerHTML = '';
+
+    if (!parentId) {
+        childSelect.disabled = true;
+        childSelect.classList.add('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn danh mục cha trước --</option>';
+        return;
+    }
+
+    const subCats = adminAllCategories.filter(c => Number(c.PARENT_CATEGORY_ID) === parentId);
+    if (subCats.length > 0) {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn danh mục con (' + subCats.length + ') --</option>';
+        subCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.CATEGORY_ID;
+            opt.textContent = c.CATEGORY_NAME;
+            childSelect.appendChild(opt);
+        });
+    } else {
+        // Trường hợp danh mục cha không có con, chính nó là danh mục được chọn
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        const opt = document.createElement('option');
+        opt.value = parentId;
+        opt.textContent = 'Mặc định (Không có danh mục con)';
+        childSelect.appendChild(opt);
+    }
+}
+
+// 2. Khi chọn Danh mục cha trong Modal 2 (Tạo Biến Thể SKU)
+function onVarParentCatChanged() {
+    const parentSelect = document.getElementById('varModalParentCatSelect');
+    const childSelect = document.getElementById('varModalCatSelect');
+    const prodSelect = document.getElementById('varModalProdSelect');
+    if (!parentSelect || !childSelect) return;
+
+    const parentId = Number(parentSelect.value);
+    childSelect.innerHTML = '';
+    if (prodSelect) {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn DM Con trước --</option>';
+    }
+
+    if (!parentId) {
+        childSelect.disabled = true;
+        childSelect.classList.add('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Trước tiên chọn DM Cha --</option>';
+        return;
+    }
+
+    const subCats = adminAllCategories.filter(c => Number(c.PARENT_CATEGORY_ID) === parentId);
+    if (subCats.length > 0) {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn DM Con (' + subCats.length + ') --</option>';
+        subCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.CATEGORY_ID;
+            opt.textContent = c.CATEGORY_NAME;
+            childSelect.appendChild(opt);
+        });
+    } else {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        const opt = document.createElement('option');
+        opt.value = parentId;
+        opt.textContent = 'Chính danh mục này';
+        childSelect.appendChild(opt);
+        onVarCategoryChanged();
+    }
+}
+
+// 3. Khi chọn Danh mục con trong Modal 2 ➔ Lọc Sản phẩm
+function onVarCategoryChanged() {
+    const catSelect = document.getElementById('varModalCatSelect');
+    const prodSelect = document.getElementById('varModalProdSelect');
+    if (!catSelect || !prodSelect) return;
+
+    const catId = Number(catSelect.value);
+    prodSelect.innerHTML = '';
+
+    if (!catId) {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn DM Con trước --</option>';
+        return;
+    }
+
+    const matchedProds = adminAllProducts.filter(p => Number(p.CATEGORY_ID) === catId);
+    if (matchedProds.length > 0) {
+        prodSelect.disabled = false;
+        prodSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn sản phẩm (' + matchedProds.length + ' sp) --</option>';
+        matchedProds.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.PRODUCT_ID;
+            opt.textContent = '#' + p.PRODUCT_ID + ' - ' + p.PRODUCT_NAME;
+            prodSelect.appendChild(opt);
+        });
+    } else {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">Không có sản phẩm nào trong danh mục này</option>';
+    }
+}
+
+function openCreateVariantModal(prodId, prodName, catId) {
+    const modal = document.getElementById('modalCreateVariant');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    if (catId) {
+        // Tìm xem category này có parent không
+        const currentCat = adminAllCategories.find(c => Number(c.CATEGORY_ID) === Number(catId));
+        const parentId = currentCat && currentCat.PARENT_CATEGORY_ID ? currentCat.PARENT_CATEGORY_ID : catId;
+        const parentSelect = document.getElementById('varModalParentCatSelect');
+        if (parentSelect) {
+            parentSelect.value = parentId;
+            onVarParentCatChanged();
+        }
+        const childSelect = document.getElementById('varModalCatSelect');
+        if (childSelect) {
+            childSelect.value = catId;
+            onVarCategoryChanged();
+        }
+    }
+    const prodSelect = document.getElementById('varModalProdSelect');
+    if (prodSelect && prodId) {
+        prodSelect.value = prodId;
+    }
+}
+</script>

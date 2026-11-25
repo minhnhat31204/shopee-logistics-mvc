@@ -1,0 +1,314 @@
+<%- include('admin-layout-top') %>
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900">Quản Lý Đơn Hàng & Xuất Kho FEFO (Truy Vấn 2 Đồ Án)</h2>
+        <p class="text-xs text-gray-500">Tra cứu trạng thái đơn hàng, thanh toán, vận chuyển và kích hoạt xuất kho tự động FEFO.</p>
+    </div>
+</div>
+
+<% if (msg) { %>
+    <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+    </div>
+<% } %>
+
+<% if (err) { %>
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-exclamation mr-2"></i> <%= err %>
+    </div>
+<% } %>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    
+<!-- Thanh Tìm Kiếm Nhanh & Làm Mới (Yêu cầu 6) -->
+<div class="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3">
+    <div class="relative flex-1 max-w-md">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+        <input type="text" id="filterInput_adminOrdersTable" onkeyup="filterTableRows('adminOrdersTable', this.value)" placeholder="Tìm theo mã đơn, khách hàng, số điện thoại, trạng thái..." class="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 shadow-sm">
+        <button type="button" onclick="clearTableFilter('adminOrdersTable')" title="Xóa từ khóa & Làm mới" class="absolute right-2.5 top-2 text-gray-400 hover:text-red-600 text-xs">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    <div class="flex items-center space-x-2">
+        <span id="filterCount_adminOrdersTable" class="text-[11px] text-gray-400"></span>
+        <button type="button" onclick="clearTableFilter('adminOrdersTable')" class="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold shadow-sm flex items-center">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Làm mới
+        </button>
+    </div>
+</div>
+
+<div class="overflow-x-auto">
+        <table id="adminOrdersTable" class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">Mã Đơn</th>
+                    <th class="p-3">Khách Hàng & SĐT</th>
+                    <th class="p-3">Tổng Tiền</th>
+                    <th class="p-3">Địa Chỉ Giao</th>
+                    <th class="p-3">Trạng Thái Đơn</th>
+                    <th class="p-3">Thanh Toán</th>
+                    <th class="p-3">Đơn Vị Vận Chuyển / Vận Đơn</th>
+                    <th class="p-3">Trạng Thái Giao</th>
+                    <th class="p-3 text-right">Hành Động</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% orders.forEach(o => { %>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-mono font-bold text-indigo-600">#<%= o.ORDER_ID %></td>
+                        <td class="p-3">
+                            <div class="font-bold text-gray-900"><%= o.KHACH_HANG %></div>
+                            <div class="text-[10px] text-gray-400 font-mono"><%= o.SDT_KHACH || '0900000000' %></div>
+                        </td>
+                        <td class="p-3 font-bold text-orange-600">
+                            <%= Number(o.TOTAL_AMOUNT).toLocaleString('vi-VN') %> đ
+                        </td>
+                        <td class="p-3 max-w-xs truncate" title="<%= o.SHIPPING_ADDRESS %>"><%= o.SHIPPING_ADDRESS %></td>
+                        <td class="p-3">
+                            <% if (o.TRANG_THAI_DON === 'SHIPPED') { %>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">ĐÃ XUẤT KHO</span>
+                            <% } else if (o.TRANG_THAI_DON === 'CANCELLED') { %>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">ĐÃ HỦY</span>
+                            <% } else { %>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800">CHỜ XỬ LÝ</span>
+                            <% } %>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
+                                <%= o.PHUONG_THUC_TT %> (<%= o.TRANG_THAI_TT %>)
+                            </span>
+                        </td>
+                        <td class="p-3 font-mono">
+                            <div class="font-bold text-gray-800"><%= o.DON_VI_VAN_CHUYEN %></div>
+                            <div class="text-[11px] text-blue-600"><%= o.MA_VAN_DON %></div>
+                        </td>
+                        <td class="p-3">
+                            <% 
+                                let shipBadgeClass = "bg-blue-50 text-blue-700";
+                                let shipTextVi = o.TRANG_THAI_GIAO;
+                                if (o.TRANG_THAI_GIAO === 'READY_TO_SHIP') {
+                                    shipBadgeClass = "bg-amber-100 text-amber-800";
+                                    shipTextVi = "Sẵn sàng giao";
+                                } else if (o.TRANG_THAI_GIAO === 'IN_TRANSIT') {
+                                    shipBadgeClass = "bg-blue-100 text-blue-700";
+                                    shipTextVi = "Đang vận chuyển";
+                                } else if (o.TRANG_THAI_GIAO === 'DELIVERED') {
+                                    shipBadgeClass = "bg-green-100 text-green-700";
+                                    shipTextVi = "Đã giao hàng";
+                                } else if (o.TRANG_THAI_GIAO === 'CANCELLED') {
+                                    shipBadgeClass = "bg-red-100 text-red-700";
+                                    shipTextVi = "Đã hủy";
+                                }
+                            %>
+                            <span class="order-status-badge px-2.5 py-1 rounded-full text-[11px] font-bold <%= shipBadgeClass %>" data-status-code="<%= o.TRANG_THAI_GIAO %>">
+                                <%= shipTextVi %>
+                            </span>
+                        </td>
+                        <td class="p-3 text-right space-x-1 whitespace-nowrap">
+                            <a href="/tracking/<%= o.ORDER_ID %>" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px] font-semibold inline-block">
+                                <i class="fa-solid fa-eye mr-1"></i> Chi Tiết
+                            </a>
+                            <button onclick="openChangeStatusModal(<%= o.ORDER_ID %>, '<%= o.TRANG_THAI_DON %>', '<%= o.TRANG_THAI_GIAO %>')" class="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                <i class="fa-solid fa-arrow-right-arrow-left mr-1"></i> Đổi Trạng Thái
+                            </button>
+                            <% if (o.TRANG_THAI_DON !== 'SHIPPED') { %>
+                                <form action="/admin/logistics/outbound-fefo" method="POST" class="inline-block" onsubmit="return confirm('Chạy Stored Procedure FEFO: tự động trừ các lô hàng có hạn sử dụng gần nhất trước?')">
+                                    <input type="hidden" name="orderId" value="<%= o.ORDER_ID %>">
+                                    <input type="hidden" name="warehouseId" value="1">
+                                    <button type="submit" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-[11px] font-semibold shadow">
+                                        <i class="fa-solid fa-bolt mr-1"></i> Xuất Kho FEFO
+                                    </button>
+                                </form>
+                            <% } %>
+                            <button type="button" 
+                                    data-order-id="<%= o.ORDER_ID %>"
+                                    data-address="<%= o.SHIPPING_ADDRESS || '' %>"
+                                    data-status="<%= o.TRANG_THAI_DON %>"
+                                    data-carrier="<%= o.DON_VI_VAN_CHUYEN || '' %>"
+                                    data-tracking="<%= o.MA_VAN_DON || '' %>"
+                                    data-shipment-status="<%= o.TRANG_THAI_GIAO %>"
+                                    onclick="handleOpenEditModal(this)"
+                                    class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa
+                            </button>
+                            <form action="/admin/orders/delete" method="POST" class="inline-block" onsubmit="return confirm('CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN đơn hàng #<%= o.ORDER_ID %> cùng toàn bộ thông tin thanh toán, vận chuyển và chi tiết kiện hàng không?');">
+                                <input type="hidden" name="orderId" value="<%= o.ORDER_ID %>">
+                                <button type="submit" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                    <i class="fa-solid fa-trash mr-1"></i> Xóa
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Đổi Trạng Thái Đơn Hàng & Vận Chuyển (Admin) -->
+<div id="modalAdminChangeStatus" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+        <button onclick="closeChangeStatusModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fa-solid fa-arrow-right-arrow-left text-orange-600 mr-2"></i> Chuyển Trạng Thái Đơn Hàng #<span id="modalOrderIdText"></span>
+        </h3>
+        <p class="text-xs text-gray-500 mb-4">Điều chỉnh trạng thái tiến trình đơn hàng và giao vận SPX Express.</p>
+
+        <form action="/admin/orders/update-status" method="POST" class="space-y-4 text-xs">
+            <input type="hidden" id="statusOrderId" name="orderId">
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Trạng Thái Đơn Hàng (Order Status) *</label>
+                <select id="selectOrderStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 font-semibold bg-white">
+                    <option value="PENDING">Chờ xử lý (PENDING)</option>
+                    <option value="SHIPPED">Đã xuất kho / Đã giao (SHIPPED)</option>
+                    <option value="CANCELLED">Hủy đơn (CANCELLED)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Trạng Thái Giao Hàng (Shipment Status) *</label>
+                <select id="selectShipmentStatus" name="shipmentStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 font-semibold bg-white">
+                    <option value="READY_TO_SHIP">Sẵn sàng giao (READY_TO_SHIP)</option>
+                    <option value="IN_TRANSIT">Đang vận chuyển (IN_TRANSIT)</option>
+                    <option value="DELIVERED">Đã giao hàng thành công (DELIVERED)</option>
+                    <option value="CANCELLED">Đã hủy vận chuyển (CANCELLED)</option>
+                </select>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="closeChangeStatusModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy Bỏ</button>
+                <button type="submit" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold shadow">Lưu Cập Nhật</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Chỉnh Sửa Thông Tin Đơn Hàng (Admin) -->
+<div id="modalAdminEditOrder" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative">
+        <button onclick="closeEditOrderModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fa-solid fa-pen-to-square text-blue-600 mr-2"></i> Chỉnh Sửa Thông Tin Đơn Hàng #<span id="editModalOrderIdText"></span>
+        </h3>
+        <p class="text-xs text-gray-500 mb-4">Cập nhật thông tin giao nhận, địa chỉ nhận hàng, đơn vị vận chuyển và trạng thái.</p>
+
+        <form action="/admin/orders/update-info" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" id="editOrderId" name="orderId">
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Địa Chỉ Nhận Hàng (Shipping Address) *</label>
+                <textarea id="editShippingAddress" name="shippingAddress" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Đơn Vị Vận Chuyển</label>
+                    <input type="text" id="editCarrierName" name="carrierName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Mã Vận Đơn (Tracking Number)</label>
+                    <input type="text" id="editTrackingNumber" name="trackingNumber" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-mono">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Trạng Thái Đơn Hàng</label>
+                    <select id="editOrderStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-semibold bg-white">
+                        <option value="PENDING">Chờ xử lý (PENDING)</option>
+                        <option value="SHIPPED">Đã xuất kho (SHIPPED)</option>
+                        <option value="CANCELLED">Hủy đơn (CANCELLED)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Trạng Thái Giao Hàng</label>
+                    <select id="editShipmentStatus" name="shipmentStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-semibold bg-white">
+                        <option value="READY_TO_SHIP">Sẵn sàng giao (READY_TO_SHIP)</option>
+                        <option value="IN_TRANSIT">Đang vận chuyển (IN_TRANSIT)</option>
+                        <option value="DELIVERED">Đã giao hàng (DELIVERED)</option>
+                        <option value="CANCELLED">Đã hủy vận chuyển (CANCELLED)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2 border-t border-gray-100">
+                <button type="button" onclick="closeEditOrderModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy Bỏ</button>
+                <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow">Lưu Thông Tin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<%- include('admin-layout-bottom') %>
+
+<script>
+function handleOpenEditModal(btn) {
+    const orderId = btn.getAttribute('data-order-id');
+    const address = btn.getAttribute('data-address');
+    const status = btn.getAttribute('data-status');
+    const carrier = btn.getAttribute('data-carrier');
+    const tracking = btn.getAttribute('data-tracking');
+    const shipmentStatus = btn.getAttribute('data-shipment-status');
+    openEditOrderModal(orderId, address, status, carrier, tracking, shipmentStatus);
+}
+
+function openEditOrderModal(orderId, address, status, carrier, tracking, shipmentStatus) {
+    document.getElementById('editModalOrderIdText').innerText = orderId;
+    document.getElementById('editOrderId').value = orderId;
+    document.getElementById('editShippingAddress').value = address || '';
+    document.getElementById('editCarrierName').value = carrier || 'SPX Express';
+    document.getElementById('editTrackingNumber').value = tracking || '';
+    document.getElementById('editOrderStatus').value = status || 'PENDING';
+    document.getElementById('editShipmentStatus').value = shipmentStatus || 'READY_TO_SHIP';
+    document.getElementById('modalAdminEditOrder').classList.remove('hidden');
+}
+
+function closeEditOrderModal() {
+    document.getElementById('modalAdminEditOrder').classList.add('hidden');
+}
+
+function openChangeStatusModal(orderId, orderStatus, shipmentStatus) {
+    document.getElementById('modalOrderIdText').innerText = orderId;
+    document.getElementById('statusOrderId').value = orderId;
+    document.getElementById('selectOrderStatus').value = orderStatus || 'PENDING';
+    document.getElementById('selectShipmentStatus').value = shipmentStatus || 'READY_TO_SHIP';
+    document.getElementById('modalAdminChangeStatus').classList.remove('hidden');
+}
+
+function closeChangeStatusModal() {
+    document.getElementById('modalAdminChangeStatus').classList.add('hidden');
+}
+
+function filterTableRows(tableId, query) {
+    query = (query || '').toLowerCase().trim();
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+    rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        if (text.includes(query)) {
+            r.style.display = '';
+            visibleCount++;
+        } else {
+            r.style.display = 'none';
+        }
+    });
+    const countEl = document.getElementById('filterCount_' + tableId);
+    if (countEl) {
+        countEl.innerText = query ? ('Hiển thị: ' + visibleCount + '/' + rows.length) : '';
+    }
+}
+
+function clearTableFilter(tableId) {
+    const input = document.getElementById('filterInput_' + tableId);
+    if (input) input.value = '';
+    filterTableRows(tableId, '');
+}
+</script>

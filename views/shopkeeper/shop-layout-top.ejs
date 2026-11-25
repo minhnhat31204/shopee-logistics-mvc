@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-gray-100 flex min-h-screen text-gray-800">
+    <!-- Sidebar Shopkeeper -->
+    <aside class="w-64 bg-purple-950 text-purple-200 flex flex-col shrink-0">
+        <div class="p-4 border-b border-purple-900 flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center text-white text-xl font-bold shadow">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <div>
+                <h1 class="text-white font-bold leading-tight truncate"><%= user.shopName || 'Gian Hàng' %></h1>
+                <p class="text-xs text-purple-400">Kênh Người Bán Shopee</p>
+            </div>
+        </div>
+
+        <div class="p-4 bg-purple-900/50 border-b border-purple-900 flex items-center space-x-3">
+            <img src="<%= user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' %>" class="w-10 h-10 rounded-full border border-purple-400/50">
+            <div class="overflow-hidden">
+                <p class="text-sm text-white font-medium truncate"><%= user.fullName %></p>
+                <span class="inline-block bg-purple-500/20 text-purple-300 text-[10px] px-1.5 py-0.5 rounded font-semibold">SHOPKEEPER</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-3 space-y-1 text-sm overflow-y-auto">
+            <a href="/shop/dashboard" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'dashboard' ? 'bg-purple-600 text-white font-semibold shadow' : 'hover:bg-purple-900 text-purple-300 hover:text-white' %>">
+                <i class="fa-solid fa-gauge w-6"></i> Tổng Quan Gian Hàng
+            </a>
+
+            <div class="pt-3 pb-1 px-3 text-[11px] font-bold text-purple-400 uppercase tracking-wider">Hàng Hóa & Tồn Kho</div>
+
+            <a href="/shop/products" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'products' ? 'bg-purple-600 text-white font-semibold shadow' : 'hover:bg-purple-900 text-purple-300 hover:text-white' %>">
+                <i class="fa-solid fa-boxes-stacked w-6"></i> Quản Lý Sản Phẩm
+            </a>
+
+            <a href="/shop/variants" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'variants' ? 'bg-purple-600 text-white font-semibold shadow' : 'hover:bg-purple-900 text-purple-300 hover:text-white' %>">
+                <i class="fa-solid fa-tags w-6"></i> Biến Thể Sản Phẩm (SKU)
+            </a>
+
+            <a href="/shop/inbound" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'inbound' ? 'bg-purple-600 text-white font-semibold shadow' : 'hover:bg-purple-900 text-purple-300 hover:text-white' %>">
+                <i class="fa-solid fa-truck-ramp-box w-6"></i> Lập Phiếu Nhập Kho
+            </a>
+
+            <div class="pt-3 pb-1 px-3 text-[11px] font-bold text-purple-400 uppercase tracking-wider">Bán Hàng & Vận Chuyển</div>
+
+            <a href="/shop/orders" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'orders' ? 'bg-purple-600 text-white font-semibold shadow' : 'hover:bg-purple-900 text-purple-300 hover:text-white' %>">
+                <i class="fa-solid fa-cart-shopping w-6"></i> Quản Lý Đơn Hàng
+            </a>
+        </nav>
+
+        <div class="p-3 border-t border-purple-900 text-xs flex justify-between items-center">
+            <a href="/" target="_blank" class="text-purple-300 hover:text-white flex items-center">
+                <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Xem Web Shop
+            </a>
+            <a href="/logout" onclick="return confirm('Bạn có chắc chắn muốn đăng xuất khỏi Kênh Người Bán (Shopkeeper)?')" class="text-red-400 hover:text-red-300 font-medium">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i> Thoát
+            </a>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-500 text-sm">Kênh Người Bán /</span>
+                <span class="font-semibold text-gray-800 text-sm"><%= title %></span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- Chọn ngôn ngữ Kênh Người Bán -->
+                <div class="relative group">
+                    <button class="flex items-center space-x-1.5 text-xs text-purple-900 bg-purple-50 hover:bg-purple-100 px-2.5 py-1.5 rounded-lg font-semibold transition border border-purple-200">
+                        <i class="fa-solid fa-globe text-purple-600"></i>
+                        <span class="current-lang-text">Tiếng Việt</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
+                    </button>
+                    <div class="absolute right-0 top-full pt-1 hidden group-hover:block w-36 z-50">
+                        <div class="bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-xs">
+                            <a href="/lang/vi" onclick="if(window.setLanguage) setLanguage('vi')" class="px-3 py-1.5 hover:bg-purple-50 hover:text-purple-700 flex items-center justify-between font-medium text-gray-700">
+                                <span>🇻🇳 Tiếng Việt</span>
+                            </a>
+                            <a href="/lang/en" onclick="if(window.setLanguage) setLanguage('en')" class="px-3 py-1.5 hover:bg-purple-50 hover:text-purple-700 flex items-center justify-between font-medium text-gray-700">
+                                <span>🇺🇸 English</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="bg-purple-100 text-purple-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+                    <i class="fa-solid fa-shield-cat mr-1"></i> Triggers Kiểm Soát Hạn Dùng Hoạt Động
+                </span>
+                <a href="/" class="text-sm text-gray-600 hover:text-purple-600 flex items-center">
+                    <i class="fa-solid fa-house mr-1"></i> Trang Chủ
+                </a>
+            </div>
+        </header>
+
+        <div class="p-6">

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-gray-100 flex min-h-screen text-gray-800">
+    <!-- Sidebar Admin -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0">
+        <div class="p-4 border-b border-slate-800 flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center text-white text-xl font-bold shadow">
+                <i class="fa-solid fa-boxes-packing"></i>
+            </div>
+            <div>
+                <h1 class="text-white font-bold leading-tight">Shopee Admin</h1>
+                <p class="text-xs text-orange-400">Logistics Hub 23ai</p>
+            </div>
+        </div>
+
+        <!-- Admin Profile snippet -->
+        <div class="p-4 bg-slate-800/50 border-b border-slate-800 flex items-center space-x-3">
+            <img src="<%= user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' %>" class="w-10 h-10 rounded-full border border-orange-500/50">
+            <div class="overflow-hidden">
+                <p class="text-sm text-white font-medium truncate"><%= user.fullName %></p>
+                <span class="inline-block bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded font-semibold">ADMINISTRATOR</span>
+            </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="flex-1 p-3 space-y-1 text-sm overflow-y-auto">
+            <a href="/admin/dashboard" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'dashboard' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-chart-pie w-6"></i> Bảng Điều Khiển
+            </a>
+
+            <div class="pt-3 pb-1 px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Hệ Thống Logistics (Chủ đề 7)</div>
+            
+            <a href="/admin/logistics" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'logistics' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-boxes-stacked w-6"></i> Quản Lý Hàng Tồn Kho
+            </a>
+
+            <a href="/admin/warehouses" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'warehouses' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-warehouse w-6"></i> Quản Lý Kho Hàng
+            </a>
+
+            <a href="/admin/locations" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'locations' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-layer-group w-6"></i> Vị Trí Kệ Hàng (A-R-S-B)
+            </a>
+
+            <a href="/admin/orders" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'orders' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-truck-fast w-6"></i> Đơn Hàng & Vận Chuyển
+            </a>
+
+            <div class="pt-3 pb-1 px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quản Trị Người Dùng & Shop</div>
+
+            <a href="/admin/users" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'users' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-users-gear w-6"></i> Users & Phân Quyền
+            </a>
+
+            <a href="/admin/shops" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'shops' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-store w-6"></i> Quản Lý Cửa Hàng
+            </a>
+
+            <div class="pt-3 pb-1 px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Danh Mục & Hàng Hóa</div>
+
+            <a href="/admin/categories" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'categories' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-layer-group w-6"></i> Danh Mục Phân Cấp
+            </a>
+
+            <a href="/admin/products" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'products' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-boxes-stacked w-6"></i> Quản Lý Sản Phẩm
+            </a>
+
+            <a href="/admin/variants" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'variants' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-tags w-6"></i> Biến Thể Sản Phẩm (SKU)
+            </a>
+
+            <a href="/admin/banners" class="flex items-center px-3 py-2.5 rounded-lg <%= activeTab === 'banners' ? 'bg-orange-600 text-white font-semibold shadow' : 'hover:bg-slate-800 text-slate-400 hover:text-white' %>">
+                <i class="fa-solid fa-images w-6"></i> Quản Lý Banner
+            </a>
+        </nav>
+
+        <!-- Footer actions -->
+        <div class="p-3 border-t border-slate-800 text-xs flex justify-between items-center">
+            <a href="/" target="_blank" class="text-orange-400 hover:underline flex items-center">
+                <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Xem Web Shop
+            </a>
+            <a href="/logout" onclick="return confirm('Bạn có chắc chắn muốn đăng xuất khỏi trang Quản trị (Admin)?')" class="text-red-400 hover:text-red-300 font-medium">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i> Thoát
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content wrapper -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <!-- Top bar -->
+        <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-500 text-sm">Phân hệ Quản trị /</span>
+                <span class="font-semibold text-gray-800 text-sm"><%= title %></span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- Bộ chọn ngôn ngữ chuyển đổi toàn web -->
+                <div class="relative group">
+                    <button class="flex items-center space-x-1.5 text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg font-semibold transition border border-gray-200">
+                        <i class="fa-solid fa-globe text-orange-500"></i>
+                        <span class="current-lang-text">Tiếng Việt</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
+                    </button>
+                    <div class="absolute right-0 top-full pt-1 hidden group-hover:block w-36 z-50">
+                        <div class="bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-xs">
+                            <a href="/lang/vi" onclick="if(window.setLanguage) setLanguage('vi')" class="px-3 py-1.5 hover:bg-orange-50 hover:text-orange-600 flex items-center justify-between font-medium">
+                                <span>🇻🇳 Tiếng Việt</span>
+                            </a>
+                            <a href="/lang/en" onclick="if(window.setLanguage) setLanguage('en')" class="px-3 py-1.5 hover:bg-orange-50 hover:text-orange-600 flex items-center justify-between font-medium">
+                                <span>🇺🇸 English</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="bg-green-100 text-green-800 text-xs px-2.5 py-1 rounded-full flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span> Oracle 23ai Connected
+                </span>
+                <a href="/" class="text-sm text-gray-600 hover:text-orange-600 flex items-center">
+                    <i class="fa-solid fa-house mr-1"></i> Giao diện Khách
+                </a>
+            </div>
+        </header>
+
+        <!-- Body Content -->
+        <div class="p-6">

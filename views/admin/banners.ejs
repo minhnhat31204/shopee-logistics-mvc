@@ -1,0 +1,29 @@
+<%- include('admin-layout-top') %>
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900">Quản Lý Banner Quảng Cáo & Marketing</h2>
+        <p class="text-xs text-gray-500">Cấu hình các banner hiển thị trên trang chủ của khách hàng Shopee Logistics Hub.</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <% banners.forEach(b => { %>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            <img src="<%= b.image %>" class="w-full h-40 object-cover">
+            <div class="p-4 flex-1 flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded uppercase">Vị trí #<%= b.id %></span>
+                    <h3 class="font-bold text-gray-900 text-sm mt-2"><%= b.title %></h3>
+                    <p class="text-xs text-gray-500 mt-1"><%= b.subtitle %></p>
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
+                    <span class="text-green-600 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>Đang hiển thị</span>
+                    <a href="<%= b.link %>" target="_blank" class="text-blue-600 hover:underline">Liên kết &rarr;</a>
+                </div>
+            </div>
+        </div>
+    <% }) %>
+</div>
+
+<%- include('admin-layout-bottom') %>

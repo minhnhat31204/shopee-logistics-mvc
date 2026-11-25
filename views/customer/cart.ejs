@@ -1,0 +1,80 @@
+<%- include('../partials/header') %>
+
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <h1 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+        <i class="fa-solid fa-cart-shopping text-[#ee4d2d] mr-2"></i> Giỏ Hàng Shopee
+    </h1>
+
+    <% if (cart.length === 0) { %>
+        <div class="bg-white rounded-sm p-12 text-center shadow-sm">
+            <i class="fa-solid fa-cart-arrow-down text-5xl text-gray-300 mb-4"></i>
+            <h3 class="text-base font-bold text-gray-800">Giỏ hàng của bạn còn trống</h3>
+            <p class="text-xs text-gray-400 mt-1 mb-6">Hãy lướt Shopee để chọn các sản phẩm ưng ý nhất nhé!</p>
+            <a href="/" class="px-8 py-2.5 bg-[#ee4d2d] text-white font-bold rounded-sm text-xs hover:opacity-90">
+                MUA NGAY
+            </a>
+        </div>
+    <% } else { %>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Danh sách sản phẩm -->
+            <div class="lg:col-span-2 bg-white rounded-sm p-4 shadow-sm">
+                <div class="divide-y divide-gray-100 text-xs">
+                    <% cart.forEach(item => { %>
+                        <div class="py-4 first:pt-0 last:pb-0 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <img src="<%= item.imageUrl || '/images/default-avatar.png' %>" class="w-16 h-16 object-cover rounded border border-gray-100">
+                                <div>
+                                    <h4 class="font-medium text-gray-900 text-sm line-clamp-1"><%= item.productName %></h4>
+                                    <div class="text-gray-400 text-[11px] mt-0.5 font-mono">Phân loại: <%= item.variantName %> (<%= item.sku %>)</div>
+                                    <div class="text-[#ee4d2d] font-bold mt-1">₫<%= Number(item.price).toLocaleString('vi-VN') %></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-6">
+                                <span class="bg-gray-100 px-2 py-1 rounded font-bold">x<%= item.quantity %></span>
+                                <div class="font-bold text-gray-800 text-sm">₫<%= (Number(item.price) * Number(item.quantity)).toLocaleString('vi-VN') %></div>
+                                <!-- Xác nhận trước khi xóa khỏi giỏ hàng (Yêu cầu 5) -->
+                                <button onclick="confirmRemoveCart('<%= item.sku %>', '<%= item.productName %>')" class="text-gray-400 hover:text-red-600 text-sm">
+                                    <i class="fa-regular fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            </div>
+
+            <!-- Tổng kết & Đặt hàng -->
+            <div class="bg-white rounded-sm p-4 shadow-sm h-max space-y-4 text-xs">
+                <h3 class="font-bold text-gray-800 text-sm border-b border-gray-100 pb-2">Shopee Voucher & Thanh Toán</h3>
+                <div class="space-y-2 text-gray-600">
+                    <div class="flex justify-between">
+                        <span>Tổng tiền hàng:</span>
+                        <span>₫<%= total.toLocaleString('vi-VN') %></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Phí vận chuyển SPX:</span>
+                        <span class="text-green-600 font-bold">Miễn phí 0Đ</span>
+                    </div>
+                    <div class="pt-3 border-t border-gray-100 flex justify-between items-baseline font-bold text-gray-900">
+                        <span>Tổng thanh toán:</span>
+                        <span class="text-xl text-[#ee4d2d] font-black">₫<%= total.toLocaleString('vi-VN') %></span>
+                    </div>
+                </div>
+
+                <a href="/checkout" class="w-full py-3 bg-[#ee4d2d] hover:bg-[#d73211] text-white text-center font-bold rounded-sm block shadow-sm text-sm">
+                    Mua Hàng (<%= cartCount %>)
+                </a>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<script>
+// Xác nhận trước khi xóa sản phẩm khỏi giỏ hàng (Yêu cầu 5)
+function confirmRemoveCart(sku, prodName) {
+    if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodName}" khỏi giỏ hàng?`)) {
+        window.location.href = `/cart/remove/${sku}`;
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

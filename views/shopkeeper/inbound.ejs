@@ -1,0 +1,411 @@
+<%- include('shop-layout-top') %>
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900">Lập Phiếu Nhập Kho & Quản Lý Lô Hàng Hạn Dùng</h2>
+        <p class="text-xs text-gray-500">Shop gửi hàng vào kho tổng Shopee. Hệ thống kích hoạt Trigger Oracle trg_check_inbound_expiry để kiểm soát Date.</p>
+    </div>
+    <button onclick="document.getElementById('modalCreateInbound').classList.remove('hidden')" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold shadow flex items-center">
+        <i class="fa-solid fa-plus mr-2"></i> Tạo Phiếu Nhập Mới
+    </button>
+</div>
+
+<% if (msg) { %>
+    <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+    </div>
+<% } %>
+
+<% if (err) { %>
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-triangle-exclamation mr-2 text-lg text-red-600"></i>
+        <div class="font-semibold text-sm">
+            <%= err %>
+        </div>
+    </div>
+<% } %>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">Mã Phiếu</th>
+                    <th class="p-3">Kho Lưu Trữ</th>
+                    <th class="p-3">Người Tạo</th>
+                    <th class="p-3">Tổng Số Lượng</th>
+                    <th class="p-3">Thời Gian Lập</th>
+                    <th class="p-3">Trạng Thái</th>
+                    <th class="p-3 text-right">Hành Động</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% receipts.forEach(r => { %>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-mono font-bold text-purple-700">#<%= r.RECEIPT_ID %></td>
+                        <td class="p-3 font-medium text-gray-800"><%= r.WAREHOUSE_NAME %></td>
+                        <td class="p-3 text-gray-600"><%= r.CREATOR_NAME %></td>
+                        <td class="p-3 font-bold text-gray-900"><%= r.TOTAL_QUANTITY %> sp</td>
+                        <td class="p-3 text-gray-400"><%= r.CREATED_AT %></td>
+                        <td class="p-3">
+                            <% 
+                                let statusBadge = 'bg-yellow-100 text-yellow-800';
+                                let statusText = 'Chờ kiểm định & cất kệ';
+                                
+                                if (r.STATUS === 'STOCK_REMOVED' || (r.STATUS === 'COMPLETED' && Number(r.CURRENT_INVENTORY_STOCK || 0) === 0 && Number(r.BATCHES_IN_INVENTORY || 0) === 0)) {
+                                    statusBadge = 'bg-gray-100 text-gray-600 border border-gray-300';
+                                    statusText = 'Đã xóa khỏi kho (Hết tồn kho)';
+                                } else if (r.STATUS === 'COMPLETED') {
+                                    statusBadge = 'bg-green-100 text-green-700';
+                                    statusText = 'Đã cất kệ kho (Còn ' + (r.CURRENT_INVENTORY_STOCK || 0) + ' sp)';
+                                }
+                            %>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold <%= statusBadge %>">
+                                <%= statusText %>
+                            </span>
+                        </td>
+                        <td class="p-3 text-right space-x-1 whitespace-nowrap">
+                            <button type="button" 
+                                    data-receipt-id="<%= r.RECEIPT_ID %>"
+                                    data-warehouse-id="<%= r.WAREHOUSE_ID %>"
+                                    data-status="<%= r.STATUS %>"
+                                    data-quantity="<%= r.TOTAL_QUANTITY %>"
+                                    onclick="handleOpenEditReceiptModal(this)"
+                                    class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa
+                            </button>
+                            <form action="/shop/inbound/delete" method="POST" class="inline-block" onsubmit="return confirm('CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN phiếu nhập #<%= r.RECEIPT_ID %> cùng toàn bộ thông tin hàng tồn kho tương ứng không?');">
+                                <input type="hidden" name="receiptId" value="<%= r.RECEIPT_ID %>">
+                                <button type="submit" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                    <i class="fa-solid fa-trash mr-1"></i> Xóa
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Chỉnh Sửa Phiếu Nhập Kho (Shopkeeper) -->
+<div id="modalEditInboundReceipt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+        <button onclick="closeEditReceiptModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fa-solid fa-pen-to-square text-blue-600 mr-2"></i> Chỉnh Sửa Phiếu Nhập Kho #<span id="editReceiptIdText"></span>
+        </h3>
+        <p class="text-xs text-gray-500 mb-4">Cập nhật kho tiếp nhận, trạng thái hoặc số lượng/hạn sử dụng lô hàng.</p>
+
+        <form action="/shop/inbound/update" method="POST" class="space-y-3.5 text-xs">
+            <input type="hidden" id="editReceiptId" name="receiptId">
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Kho Tiếp Nhận *</label>
+                <select id="editWarehouseId" name="warehouseId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+                    <% warehouses.forEach(w => { %>
+                        <option value="<%= w.WAREHOUSE_ID %>"><%= w.WAREHOUSE_NAME %> - <%= w.ADDRESS %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Trạng Thái Phiếu *</label>
+                <select id="editReceiptStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-semibold bg-white">
+                    <option value="PENDING">Chờ kiểm định & cất kệ (PENDING)</option>
+                    <option value="COMPLETED">Đã cất kệ kho (COMPLETED)</option>
+                    <option value="STOCK_REMOVED">Đã xóa khỏi kho (Hết tồn kho)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Số Lượng Hàng Trong Lô (sp)</label>
+                <input type="number" id="editReceiptQuantity" name="quantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Hạn Sử Dụng (Expiry Date - YYYY-MM-DD)</label>
+                <input type="date" id="editReceiptExpiry" name="expiryDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2 border-t border-gray-100">
+                <button type="button" onclick="closeEditReceiptModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy Bỏ</button>
+                <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow">Lưu Thông Tin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function handleOpenEditReceiptModal(btn) {
+    const receiptId = btn.getAttribute('data-receipt-id');
+    const warehouseId = btn.getAttribute('data-warehouse-id');
+    const status = btn.getAttribute('data-status');
+    const quantity = btn.getAttribute('data-quantity');
+
+    document.getElementById('editReceiptIdText').innerText = receiptId;
+    document.getElementById('editReceiptId').value = receiptId;
+    document.getElementById('editWarehouseId').value = warehouseId || '1';
+    document.getElementById('editReceiptStatus').value = status || 'PENDING';
+    document.getElementById('editReceiptQuantity').value = quantity || '';
+    document.getElementById('modalEditInboundReceipt').classList.remove('hidden');
+}
+
+function closeEditReceiptModal() {
+    document.getElementById('modalEditInboundReceipt').classList.add('hidden');
+}
+</script>
+
+<div id="modalCreateInbound" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+        <button onclick="document.getElementById('modalCreateInbound').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fa-solid fa-truck-ramp-box text-purple-600 mr-2"></i> Lập Phiếu Gửi Hàng Vào Kho Tổng
+        </h3>
+        <p class="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 mb-4">
+            <i class="fa-solid fa-shield-halved mr-1"></i> <strong>Quy tắc Trigger trg_check_inbound_expiry:</strong> Hàng đã hết hạn hoặc cận hạn dưới 7 ngày sẽ bị Oracle tự động ném ngoại lệ ORA-20001/20002 và từ chối lưu!
+        </p>
+
+        <form action="/shop/inbound/create" method="POST" class="space-y-3 text-xs">
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Chọn Trung Tâm Logistics Nhận Hàng *</label>
+                <select name="warehouseId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none">
+                    <% warehouses.forEach(w => { %>
+                        <option value="<%= w.WAREHOUSE_ID %>"><%= w.WAREHOUSE_NAME %> - <%= w.ADDRESS %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2.5">
+                <p class="font-bold text-gray-700">Thông tin lô hàng nhập</p>
+
+                <div class="space-y-3">
+                    <!-- Bước 1 & 2: Chọn Danh Mục Cha & Danh Mục Con -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                                <span class="w-5 h-5 rounded-full bg-purple-600 text-white inline-flex items-center justify-center text-[10px] font-bold mr-1.5">1</span>
+                                Danh Mục Cha (Cấp 1) *
+                            </label>
+                            <select id="selectParentCategoryInbound" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-white font-medium" onchange="onParentCategoryChangedInbound()">
+                                <option value="">-- Chọn danh mục cha --</option>
+                                <% if (typeof categories !== 'undefined') { %>
+                                    <% categories.filter(c => !c.PARENT_CATEGORY_ID).forEach(c => { %>
+                                        <option value="<%= c.CATEGORY_ID %>"><%= c.CATEGORY_NAME %></option>
+                                    <% }) %>
+                                <% } %>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                                <span class="w-5 h-5 rounded-full bg-purple-600 text-white inline-flex items-center justify-center text-[10px] font-bold mr-1.5">2</span>
+                                Danh Mục Con (Cấp 2) *
+                            </label>
+                            <select id="selectCategoryInbound" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition font-medium" onchange="onCategoryChangedInbound()">
+                                <option value="">-- Chọn danh mục cha trước --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Bước 3 & 4: Chọn Sản Phẩm & Biến thể SKU -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                                <span class="w-5 h-5 rounded-full bg-purple-600 text-white inline-flex items-center justify-center text-[10px] font-bold mr-1.5">3</span>
+                                Chọn Sản Phẩm *
+                            </label>
+                            <select name="productId" id="selectProd" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition" onchange="onProductSelectChanged()">
+                                <option value="">-- Chọn danh mục con trước --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                                <span class="w-5 h-5 rounded-full bg-purple-600 text-white inline-flex items-center justify-center text-[10px] font-bold mr-1.5">4</span>
+                                Biến Thể & SKU Nhập Kho *
+                            </label>
+                            <select name="sku" id="selectSku" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono focus:outline-none bg-gray-50 text-gray-500 transition">
+                                <option value="">-- Chọn sản phẩm trước --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-600 mb-1">Mã Lô (Batch) *</label>
+                        <input type="text" name="batchNumber" placeholder="BATCH-2024-X" required class="w-full px-3 py-1.5 border border-gray-300 rounded-lg font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-600 mb-1">Số Lượng Nhập *</label>
+                        <input type="number" name="quantity" value="200" min="1" required class="w-full px-3 py-1.5 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-600 mb-1">Hạn Dùng (Expiry) *</label>
+                        <input type="date" name="expiryDate" required class="w-full px-3 py-1.5 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2 pt-1 text-[11px] text-gray-500">
+                    <span>Thử nghiệm:</span>
+                    <button type="button" onclick="setExpiryTest(-2)" class="px-2 py-0.5 bg-red-100 text-red-700 rounded hover:bg-red-200">Date quá khứ (ORA-20001)</button>
+                    <button type="button" onclick="setExpiryTest(3)" class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">Cận date 3 ngày (ORA-20002)</button>
+                    <button type="button" onclick="setExpiryTest(60)" class="px-2 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200">Date chuẩn (+60 ngày)</button>
+                </div>
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalCreateInbound').classList.add('hidden')" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold">Tạo Phiếu Nhập Kho</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const allShopCategories = <%- JSON.stringify(typeof categories !== 'undefined' ? categories : []) %>;
+const allShopProducts = <%- JSON.stringify(typeof products !== 'undefined' ? products : []) %>;
+const allShopVariants = <%- JSON.stringify(typeof variants !== 'undefined' ? variants : []) %>;
+
+// 1. Khi chọn Danh mục Cha (Cấp 1) -> Load danh sách Danh mục Con (Cấp 2)
+function onParentCategoryChangedInbound() {
+    const parentSelect = document.getElementById('selectParentCategoryInbound');
+    const childSelect = document.getElementById('selectCategoryInbound');
+    const prodSelect = document.getElementById('selectProd');
+    const skuSelect = document.getElementById('selectSku');
+    if (!parentSelect || !childSelect) return;
+
+    const parentId = Number(parentSelect.value);
+
+    // Reset các cấp dưới
+    childSelect.innerHTML = '';
+    if (prodSelect) {
+        prodSelect.innerHTML = '<option value="">-- Chọn danh mục con trước --</option>';
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+    }
+    if (skuSelect) {
+        skuSelect.innerHTML = '<option value="">-- Chọn sản phẩm trước --</option>';
+        skuSelect.disabled = true;
+        skuSelect.classList.add('bg-gray-50', 'text-gray-500');
+    }
+
+    if (!parentId) {
+        childSelect.disabled = true;
+        childSelect.classList.add('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn danh mục cha trước --</option>';
+        return;
+    }
+
+    const subCats = allShopCategories.filter(c => Number(c.PARENT_CATEGORY_ID) === parentId);
+    if (subCats.length > 0) {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn danh mục con (' + subCats.length + ') --</option>';
+        subCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.CATEGORY_ID;
+            opt.textContent = c.CATEGORY_NAME;
+            childSelect.appendChild(opt);
+        });
+    } else {
+        // Trường hợp danh mục cha không có con
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        const opt = document.createElement('option');
+        opt.value = parentId;
+        opt.textContent = 'Mặc định (Không có danh mục con)';
+        childSelect.appendChild(opt);
+        onCategoryChangedInbound();
+    }
+}
+
+// 2. Khi chọn Danh mục Con (Cấp 2) -> Lọc các sản phẩm thuộc danh mục con đó
+function onCategoryChangedInbound() {
+    const catSelect = document.getElementById('selectCategoryInbound');
+    const prodSelect = document.getElementById('selectProd');
+    const skuSelect = document.getElementById('selectSku');
+    if (!catSelect || !prodSelect || !skuSelect) return;
+
+    const selectedCatId = Number(catSelect.value);
+
+    // Reset lại ô sản phẩm và SKU
+    prodSelect.innerHTML = '';
+    skuSelect.innerHTML = '<option value="">-- Chọn sản phẩm trước --</option>';
+    skuSelect.disabled = true;
+    skuSelect.classList.add('bg-gray-50', 'text-gray-500');
+
+    if (!selectedCatId) {
+        prodSelect.innerHTML = '<option value="">-- Chọn danh mục con trước --</option>';
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        return;
+    }
+
+    // Lọc sản phẩm thuộc danh mục đã chọn
+    const matchedProducts = allShopProducts.filter(p => Number(p.CATEGORY_ID) === selectedCatId);
+
+    if (matchedProducts.length > 0) {
+        prodSelect.disabled = false;
+        prodSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn sản phẩm (' + matchedProducts.length + ' sản phẩm) --</option>';
+
+        matchedProducts.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.PRODUCT_ID;
+            opt.textContent = p.PRODUCT_NAME;
+            prodSelect.appendChild(opt);
+        });
+    } else {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">Không có sản phẩm nào trong danh mục này</option>';
+    }
+}
+
+// 2. Khi chọn Sản phẩm -> Load các biến thể SKU tương ứng
+function onProductSelectChanged() {
+    const prodSelect = document.getElementById('selectProd');
+    const skuSelect = document.getElementById('selectSku');
+    if (!prodSelect || !skuSelect) return;
+
+    const prodId = Number(prodSelect.value);
+    skuSelect.innerHTML = '';
+
+    if (!prodId) {
+        skuSelect.disabled = true;
+        skuSelect.classList.add('bg-gray-50', 'text-gray-500');
+        skuSelect.innerHTML = '<option value="">-- Chọn sản phẩm trước --</option>';
+        return;
+    }
+
+    const matchedVariants = allShopVariants.filter(v => Number(v.PRODUCT_ID) === prodId);
+
+    if (matchedVariants.length > 0) {
+        skuSelect.disabled = false;
+        skuSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        matchedVariants.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.SKU;
+            opt.textContent = v.SKU + ' - ' + (v.VARIANT_NAME || 'Chuẩn');
+            skuSelect.appendChild(opt);
+        });
+    } else {
+        skuSelect.disabled = true;
+        skuSelect.classList.add('bg-gray-50', 'text-gray-500');
+        skuSelect.innerHTML = '<option value="">-- Chưa có SKU/Biến thể --</option>';
+    }
+}
+
+function setExpiryTest(days) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const dateStr = d.toISOString().split('T')[0];
+    document.querySelector('input[name="expiryDate"]').value = dateStr;
+}
+</script>
+
+<%- include('shop-layout-bottom') %>

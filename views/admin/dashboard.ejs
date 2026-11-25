@@ -1,0 +1,192 @@
+<%- include('admin-layout-top') %>
+
+<!-- Thống kê tổng quan -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+    <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tổng Tồn Kho</p>
+            <h3 class="text-2xl font-bold text-gray-900 mt-1"><%= stats.inventoryTotal.toLocaleString() %> <span class="text-xs font-normal text-gray-500">sp</span></h3>
+            <p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-boxes-stacked mr-1"></i>Đang lưu trên kệ</p>
+        </div>
+        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-cubes"></i>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Cảnh Báo Hạn Dùng</p>
+            <h3 class="text-2xl font-bold <%= stats.alertCount > 0 ? 'text-red-600' : 'text-gray-900' %> mt-1"><%= stats.alertCount %> <span class="text-xs font-normal text-gray-500">lô</span></h3>
+            <p class="text-xs text-red-500 mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Hạn dưới 30 ngày (FEFO)</p>
+        </div>
+        <div class="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Tổng Đơn Hàng</p>
+            <h3 class="text-2xl font-bold text-gray-900 mt-1"><%= stats.orderCount %></h3>
+            <p class="text-xs text-indigo-600 mt-1"><i class="fa-solid fa-truck-moving mr-1"></i>SPX Express Logistics</p>
+        </div>
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-dolly"></i>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Người Dùng & Gian Hàng</p>
+            <h3 class="text-2xl font-bold text-gray-900 mt-1"><%= stats.userCount %> <span class="text-xs font-normal text-gray-500">/ <%= stats.shopCount %> shop</span></h3>
+            <p class="text-xs text-purple-600 mt-1"><i class="fa-solid fa-users mr-1"></i>3 Roles phân quyền</p>
+        </div>
+        <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl">
+            <i class="fa-solid fa-store"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Cảnh báo cận hạn sử dụng (Chủ đề 7) & Lô hàng cần ưu tiên FEFO -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-red-50/50">
+            <h3 class="font-bold text-gray-900 flex items-center text-sm">
+                <i class="fa-solid fa-bell text-red-500 mr-2 text-base"></i> Cảnh Báo Hạn Dùng - Thủ tục pkg_logistics_core.check_expiry_alerts
+            </h3>
+            <a href="/admin/logistics" class="text-xs font-semibold text-orange-600 hover:underline">Xử lý tồn kho &rarr;</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-600">
+                <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                    <tr>
+                        <th class="p-3">Sản Phẩm & SKU</th>
+                        <th class="p-3">Số Lô (Batch)</th>
+                        <th class="p-3">Vị Trí Kệ</th>
+                        <th class="p-3">Số Lượng</th>
+                        <th class="p-3">Ngày Hết Hạn</th>
+                        <th class="p-3">Tình Trạng</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <% if (expiryAlerts.length === 0) { %>
+                        <tr>
+                            <td colspan="6" class="p-4 text-center text-gray-400">Tất cả các lô hàng đều an toàn (> 30 ngày).</td>
+                        </tr>
+                    <% } else { %>
+                        <% expiryAlerts.forEach(al => { %>
+                            <tr class="hover:bg-red-50/20">
+                                <td class="p-3 font-medium text-gray-900">
+                                    <%= al.VARIANT_NAME %>
+                                    <div class="text-[10px] text-gray-400 font-mono"><%= al.SKU %></div>
+                                </td>
+                                <td class="p-3 font-mono font-semibold text-gray-700"><%= al.BATCH_NUMBER %></td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 bg-gray-100 rounded text-gray-700 font-mono text-[11px]">
+                                        <%= al.AISLE %>-<%= al.RACK %>-<%= al.SHELF %>-<%= al.BIN %>
+                                    </span>
+                                </td>
+                                <td class="p-3 font-bold text-gray-800"><%= al.QUANTITY %></td>
+                                <td class="p-3 font-semibold text-red-600"><%= al.EXPIRY_DATE %></td>
+                                <td class="p-3">
+                                    <% if (al.DAYS_LEFT < 0) { %>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white">Đã hết hạn (<%= Math.abs(al.DAYS_LEFT) %> ngày)</span>
+                                    <% } else if (al.DAYS_LEFT <= 7) { %>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">Nguy cấp: Còn <%= al.DAYS_LEFT %> ngày</span>
+                                    <% } else { %>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800">Cận hạn: Còn <%= al.DAYS_LEFT %> ngày</span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Nhật ký Audit Log (Trigger trg_audit_inventory) -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-gray-100 bg-slate-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-900 flex items-center text-sm">
+                <i class="fa-solid fa-clipboard-check text-indigo-500 mr-2 text-base"></i> Audit Log Tồn Kho (Trigger)
+            </h3>
+            <span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">INVENTORY_AUDIT_LOG</span>
+        </div>
+        <div class="p-3 flex-1 overflow-y-auto max-h-80 space-y-2.5 text-xs">
+            <% if (auditLogs.length === 0) { %>
+                <p class="text-gray-400 text-center py-6">Chưa có thay đổi số lượng tồn kho nào.</p>
+            <% } else { %>
+                <% auditLogs.forEach(log => { %>
+                    <div class="p-2.5 rounded-lg border border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <div>
+                            <div class="font-semibold text-gray-800 font-mono"><%= log.SKU %> / <%= log.BATCH_NUMBER %></div>
+                            <div class="text-[10px] text-gray-500 mt-0.5"><i class="fa-regular fa-clock mr-1"></i><%= log.ACTION_TIME %> bởi <span class="text-indigo-600 font-semibold"><%= log.ACTION_BY %></span></div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-gray-400 line-through mr-1"><%= log.OLD_QUANTITY %></span>
+                            <i class="fa-solid fa-arrow-right text-[10px] text-gray-400"></i>
+                            <span class="font-bold text-sm <%= log.NEW_QUANTITY < log.OLD_QUANTITY ? 'text-red-600' : 'text-green-600' %> ml-1"><%= log.NEW_QUANTITY %></span>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- Đơn Hàng Mới Nhất -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+        <h3 class="font-bold text-gray-900 flex items-center text-sm">
+            <i class="fa-solid fa-bag-shopping text-orange-500 mr-2 text-base"></i> Đơn Hàng Chờ Xử Lý & Xuất Kho FEFO
+        </h3>
+        <a href="/admin/orders" class="text-xs font-semibold text-orange-600 hover:underline">Xem tất cả đơn hàng &rarr;</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">Mã Đơn</th>
+                    <th class="p-3">Khách Hàng</th>
+                    <th class="p-3">Tổng Tiền</th>
+                    <th class="p-3">Địa Chỉ Giao</th>
+                    <th class="p-3">Trạng Thái Đơn</th>
+                    <th class="p-3">Thanh Toán</th>
+                    <th class="p-3 text-right">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% recentOrders.forEach(o => { %>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-mono font-bold text-indigo-600">#<%= o.ORDER_ID %></td>
+                        <td class="p-3 font-medium text-gray-900"><%= o.KHACH_HANG %></td>
+                        <td class="p-3 font-bold text-orange-600"><%= Number(o.TOTAL_AMOUNT).toLocaleString('vi-VN') %> đ</td>
+                        <td class="p-3 max-w-xs truncate" title="<%= o.SHIPPING_ADDRESS %>"><%= o.SHIPPING_ADDRESS %></td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold <%= o.TRANG_THAI_DON === 'SHIPPED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800' %>">
+                                <%= o.TRANG_THAI_DON %>
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
+                                <%= o.PHUONG_THUC_TT %> (<%= o.TRANG_THAI_TT %>)
+                            </span>
+                        </td>
+                        <td class="p-3 text-right">
+                            <form action="/admin/logistics/outbound-fefo" method="POST" class="inline-block" onsubmit="return confirm('Chạy procedure FEFO xuất kho tự động cho đơn #<%= o.ORDER_ID %>?')">
+                                <input type="hidden" name="orderId" value="<%= o.ORDER_ID %>">
+                                <input type="hidden" name="warehouseId" value="1">
+                                <button type="submit" class="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-[11px] font-semibold shadow-sm">
+                                    <i class="fa-solid fa-play mr-1"></i> Xuất Kho FEFO
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<%- include('admin-layout-bottom') %>

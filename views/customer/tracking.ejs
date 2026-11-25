@@ -1,0 +1,201 @@
+<%- include('../partials/header') %>
+
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <!-- Nút quay lại trang trước -->
+    <div class="mb-4 flex items-center justify-between">
+        <button onclick="if(window.history.length > 1){ window.history.back(); } else { window.location.href='/my-orders'; }" 
+                class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-orange-600 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer">
+            <i class="fa-solid fa-arrow-left"></i> Quay lại trang trước
+        </button>
+        <div class="text-xs text-gray-500">
+            Chi tiết vận đơn đơn hàng #<%= order.ORDER_ID %>
+        </div>
+    </div>
+    <% if (success) { %>
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-2xl flex items-center shadow-sm">
+            <i class="fa-solid fa-circle-check text-2xl text-green-500 mr-3"></i>
+            <div>
+                <h4 class="font-bold text-sm">Đặt hàng thành công!</h4>
+                <p class="text-xs text-green-700 mt-0.5">Đơn hàng #<%= order.ORDER_ID %> đã được gửi tới Trung Tâm Logistics Shopee để chuẩn bị hàng theo nguyên tắc FEFO.</p>
+            </div>
+        </div>
+    <% } %>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div class="flex flex-col md:flex-row justify-between md:items-center pb-6 border-b border-gray-100 gap-4">
+            <div>
+                <span class="text-xs bg-orange-100 text-orange-700 font-bold px-2.5 py-1 rounded">SPX EXPRESS TRACKING</span>
+                <h1 class="text-xl font-bold text-gray-900 mt-2">Mã Vận Đơn: <span class="font-mono text-indigo-600"><%= order.TRACKING_NUMBER %></span></h1>
+                <p class="text-xs text-gray-500 mt-1">Đơn Hàng #<%= order.ORDER_ID %> | Người nhận: <strong><%= order.CUSTOMER_NAME %></strong> (<%= order.CUSTOMER_PHONE %>)</p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs text-gray-500">Trạng Thái Vận Chuyển:</span>
+                <div class="text-base font-bold text-green-600 flex items-center md:justify-end mt-0.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 mr-2 animate-ping"></span>
+                    <%= order.SHIPMENT_STATUS === 'IN_TRANSIT' ? 'Đang trên đường giao hàng' : 'Đang xử lý tại trung tâm phân loại' %>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢN ĐỒ VẬN CHUYỂN TRỰC TIẾP (LEAFLET MAP) -->
+        <div class="mt-6">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-gray-800 text-sm flex items-center">
+                    <i class="fa-solid fa-map-location-dot text-orange-500 mr-2"></i> Lộ Trình Giao Hàng Từ Kho Trung Tâm Đến Điểm Nhận
+                </h3>
+                <span class="text-[11px] text-gray-500"><i class="fa-solid fa-location-crosshairs mr-1 text-blue-500"></i>GPS SPX Live Simulator</span>
+            </div>
+            <div id="trackingMap" class="w-full h-80 rounded-xl shadow-inner border border-gray-200 z-10"></div>
+        </div>
+
+        <!-- Chi tiết sản phẩm trong đơn dạng bảng chuyên nghiệp -->
+        <div class="mt-8 pt-6 border-t border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-800 text-sm flex items-center">
+                    <i class="fa-solid fa-boxes-packing text-orange-500 mr-2"></i> Danh Sách Kiện Hàng & Sản Phẩm Trong Đơn
+                </h3>
+                <span class="text-xs text-gray-500">Tổng số kiện: <strong><%= order.items ? order.items.length : 0 %></strong></span>
+            </div>
+
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-gray-50 text-gray-600 uppercase font-semibold border-b border-gray-200 text-[11px]">
+                        <tr>
+                            <th class="p-3 w-12 text-center">STT</th>
+                            <th class="p-3">Sản Phẩm & Phân Loại</th>
+                            <th class="p-3 text-center">Mã SKU</th>
+                            <th class="p-3 text-right">Đơn Giá</th>
+                            <th class="p-3 text-center">Số Lượng</th>
+                            <th class="p-3 text-right">Thành Tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        <% let totalMerchandise = 0; %>
+                        <% (order.items || []).forEach((it, idx) => { %>
+                            <% 
+                                const lineTotal = Number(it.UNIT_PRICE || 0) * Number(it.QUANTITY || 1);
+                                totalMerchandise += lineTotal;
+                            %>
+                            <tr class="hover:bg-gray-50/60 transition">
+                                <td class="p-3 text-center text-gray-400 font-mono"><%= idx + 1 %></td>
+                                <td class="p-3">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="<%= it.IMAGE_URL || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100' %>" class="w-14 h-14 rounded-lg object-cover border border-gray-200 shadow-xs shrink-0">
+                                        <div>
+                                            <h4 class="font-bold text-gray-900 text-xs sm:text-sm line-clamp-2"><%= it.PRODUCT_NAME %></h4>
+                                            <div class="text-[11px] text-gray-500 mt-0.5">Phân loại: <span class="text-orange-600 font-medium"><%= it.VARIANT_NAME %></span></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-3 text-center font-mono text-gray-600 text-[11px]">
+                                    <span class="bg-gray-100 px-2 py-0.5 rounded border border-gray-200"><%= it.SKU %></span>
+                                </td>
+                                <td class="p-3 text-right font-medium text-gray-700">
+                                    ₫<%= Number(it.UNIT_PRICE || 0).toLocaleString('vi-VN') %>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="inline-block px-2.5 py-0.5 bg-gray-100 rounded-full font-bold text-gray-800 text-xs">x<%= it.QUANTITY %></span>
+                                </td>
+                                <td class="p-3 text-right font-bold text-[#ee4d2d] text-sm">
+                                    ₫<%= lineTotal.toLocaleString('vi-VN') %>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                    <tfoot class="bg-gray-50/80 border-t border-gray-200">
+                        <tr>
+                            <td colspan="4" class="p-3 text-gray-500 text-[11px] italic">
+                                <i class="fa-solid fa-location-dot text-red-500 mr-1"></i> Giao đến: <%= order.SHIPPING_ADDRESS %>
+                            </td>
+                            <td class="p-3 text-right text-gray-600 font-medium text-xs">
+                                Tiền hàng:
+                            </td>
+                            <td class="p-3 text-right font-semibold text-gray-800 text-xs">
+                                ₫<%= totalMerchandise.toLocaleString('vi-VN') %>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" class="p-2 text-gray-400 text-[11px]">
+                                Phương thức thanh toán: <strong><%= order.PAYMENT_METHOD %></strong> (<%= order.PAYMENT_STATUS === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' %>)
+                            </td>
+                            <td class="p-2 text-right text-gray-600 font-medium text-xs">
+                                Phí vận chuyển:
+                            </td>
+                            <td class="p-2 text-right font-semibold text-green-600 text-xs">
+                                Miễn phí (0 ₫)
+                            </td>
+                        </tr>
+                        <tr class="bg-orange-50/50">
+                            <td colspan="4" class="p-3.5">
+                                <span class="text-xs text-orange-700 font-medium"><i class="fa-solid fa-shield-halved mr-1"></i>Đơn hàng được bảo vệ bởi Shopee Logistics FEFO Guarantee</span>
+                            </td>
+                            <td class="p-3.5 text-right font-bold text-gray-800 text-sm">
+                                Tổng Thanh Toán:
+                            </td>
+                            <td class="p-3.5 text-right font-black text-[#ee4d2d] text-base">
+                                ₫<%= Number(order.TOTAL_AMOUNT || totalMerchandise).toLocaleString('vi-VN') %>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Tọa độ Kho Tổng Shopee Quận 9 (Khu Công Nghệ Cao)
+    const warehouseCoord = [10.8524, 106.7905];
+    // Tọa độ Điểm Giao Hàng (Ví dụ: 828 Sư Vạn Hạnh, Q10, TPHCM)
+    const deliveryCoord = [10.7769, 106.6672];
+
+    const map = L.map('trackingMap').setView([10.8146, 106.7288], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Marker Kho Tổng
+    const whIcon = L.divIcon({
+        className: 'custom-icon',
+        html: '<div style="background-color:#ee4d2d;color:white;padding:6px;border-radius:50%;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);"><i class="fa-solid fa-warehouse"></i></div>',
+        iconSize: [28, 28]
+    });
+    L.marker(warehouseCoord, { icon: whIcon }).addTo(map)
+        .bindPopup("<b>Kho Tổng Shopee Quận 9</b><br>Khu Công Nghệ Cao, TP. Thủ Đức")
+        .openPopup();
+
+    // Marker Điểm Giao Hàng
+    const userIcon = L.divIcon({
+        className: 'custom-icon',
+        html: '<div style="background-color:#2563eb;color:white;padding:6px;border-radius:50%;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);"><i class="fa-solid fa-house-chimney"></i></div>',
+        iconSize: [28, 28]
+    });
+    L.marker(deliveryCoord, { icon: userIcon }).addTo(map)
+        .bindPopup("<b>Điểm Giao Hàng</b><br><%= order.SHIPPING_ADDRESS %>");
+
+    // Đường Lộ Trình Polyline
+    const latlngs = [
+        warehouseCoord,
+        [10.8400, 106.7600],
+        [10.8000, 106.7100],
+        [10.7850, 106.6800],
+        deliveryCoord
+    ];
+    const polyline = L.polyline(latlngs, { color: '#ee4d2d', weight: 4, dashArray: '8, 8' }).addTo(map);
+
+    // Marker Xe Giao Hàng SPX Express
+    const truckIcon = L.divIcon({
+        className: 'custom-icon',
+        html: '<div style="background-color:#16a34a;color:white;padding:6px;border-radius:50%;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);"><i class="fa-solid fa-truck-fast"></i></div>',
+        iconSize: [28, 28]
+    });
+    L.marker([10.8100, 106.7200], { icon: truckIcon }).addTo(map)
+        .bindPopup("<b>Tài xế SPX Express</b><br>Đang vận chuyển đơn hàng...");
+
+    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+});
+</script>
+
+<%- include('../partials/footer') %>

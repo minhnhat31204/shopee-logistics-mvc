@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <!-- Tailwind CSS CDN & FontAwesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .shopee-bg-primary { background: linear-gradient(-180deg, #f53d2d, #f63); }
+        .shopee-text-primary { color: #ee4d2d; }
+        .shopee-border-primary { border-color: #ee4d2d; }
+        /* Hiệu ứng bay vào giỏ hàng (Yêu cầu 9) */
+        .fly-item {
+            position: fixed;
+            z-index: 9999;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+            object-fit: cover;
+            border: 2px solid #ee4d2d;
+            box-shadow: 0 4px 12px rgba(238, 77, 45, 0.4);
+        }
+        .cart-bump {
+            animation: bump 0.4s ease-out;
+        }
+        @keyframes bump {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.35); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-[#f5f5f5] flex flex-col min-h-screen text-gray-800 font-sans">
+
+    <!-- Top Navigation Header (Chuẩn Shopee thực tế - Hình 3, 4, 5) -->
+    <header class="shopee-bg-primary text-white text-xs sticky top-0 z-50 shadow-md">
+        <!-- Top bar nhỏ trên cùng -->
+        <div class="max-w-7xl mx-auto px-4 py-1.5 flex justify-between items-center border-b border-white/10">
+            <div class="flex items-center space-x-3 text-[11px]">
+                <a href="/shop/dashboard" class="hover:text-white/80">Kênh Người Bán</a>
+                <span class="text-white/40">|</span>
+                <a href="#" class="hover:text-white/80">Tải ứng dụng</a>
+                <span class="text-white/40">|</span>
+                <span class="flex items-center">
+                    Kết nối
+                    <i class="fa-brands fa-facebook ml-1 hover:opacity-80 cursor-pointer"></i>
+                    <i class="fa-brands fa-instagram ml-1 hover:opacity-80 cursor-pointer"></i>
+                </span>
+            </div>
+            
+            <div class="flex items-center space-x-4 text-[12px]">
+                <a href="#" class="hover:text-white/80 flex items-center"><i class="fa-regular fa-bell mr-1"></i> Thông Báo</a>
+                <a href="#" class="hover:text-white/80 flex items-center"><i class="fa-regular fa-circle-question mr-1"></i> Hỗ Trợ</a>
+                
+                <!-- Bộ chọn ngôn ngữ Khách hàng (Shopee Language Selector) -->
+                <div class="relative group">
+                    <button class="hover:text-white/80 flex items-center py-1 font-medium cursor-pointer">
+                        <i class="fa-solid fa-globe mr-1 text-[13px]"></i>
+                        <span class="current-lang-text">Tiếng Việt</span>
+                        <i class="fa-solid fa-chevron-down text-[9px] ml-1"></i>
+                    </button>
+                    <div class="absolute right-0 top-full pt-1 hidden group-hover:block w-36 z-50">
+                        <div class="bg-white text-gray-800 rounded-md shadow-lg py-1 border border-gray-100 text-xs">
+                            <a href="/lang/vi" onclick="if(window.setLanguage) setLanguage('vi')" class="px-4 py-2 hover:bg-orange-50 hover:text-[#ee4d2d] flex items-center justify-between font-medium">
+                                <span>🇻🇳 Tiếng Việt</span>
+                            </a>
+                            <a href="/lang/en" onclick="if(window.setLanguage) setLanguage('en')" class="px-4 py-2 hover:bg-orange-50 hover:text-[#ee4d2d] flex items-center justify-between font-medium">
+                                <span>🇺🇸 English</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <% if (currentUser) { %>
+                    <div class="relative group">
+                        <button class="flex items-center space-x-1.5 hover:text-white/80 py-1 font-medium">
+                            <img src="<%= currentUser.avatar || '/images/default-avatar.png' %>" class="w-5 h-5 rounded-full object-cover border border-white/40">
+                            <span class="max-w-[120px] truncate"><%= currentUser.fullName %></span>
+                            <i class="fa-solid fa-chevron-down text-[9px] ml-0.5"></i>
+                        </button>
+                        <div class="absolute right-0 top-full pt-1 hidden group-hover:block w-44 z-50">
+                            <div class="bg-white text-gray-800 rounded-md shadow-lg py-1 border border-gray-100 text-xs">
+                                <a href="/profile" class="px-4 py-2 hover:bg-gray-50 flex items-center text-gray-700 font-medium">
+                                    <i class="fa-regular fa-user w-5 text-gray-500"></i> Thông Tin Của Tôi
+                                </a>
+                                <a href="/my-orders" class="px-4 py-2 hover:bg-gray-50 flex items-center text-gray-700 font-medium">
+                                    <i class="fa-solid fa-box-archive w-5 text-gray-500"></i> Đơn Hàng Của Tôi
+                                </a>
+                                <a href="/favorites" class="px-4 py-2 hover:bg-gray-50 flex items-center text-red-600 font-medium">
+                                    <i class="fa-solid fa-heart w-5 text-red-500"></i> Sản Phẩm Yêu Thích
+                                </a>
+                                <% if (currentUser.roleName === 'ADMIN') { %>
+                                    <a href="/admin/dashboard" class="px-4 py-2 hover:bg-blue-50 text-blue-600 font-semibold flex items-center">
+                                        <i class="fa-solid fa-shield-halved w-5"></i> Trang Quản Trị
+                                    </a>
+                                <% } else if (currentUser.roleName === 'SHOPKEEPER') { %>
+                                    <a href="/shop/dashboard" class="px-4 py-2 hover:bg-purple-50 text-purple-600 font-semibold flex items-center">
+                                        <i class="fa-solid fa-store w-5"></i> Kênh Người Bán
+                                    </a>
+                                <% } %>
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <button onclick="confirmLogout()" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600 flex items-center">
+                                    <i class="fa-solid fa-right-from-bracket w-5"></i> Đăng Xuất
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <span class="text-white/70">Khách hàng mới 001</span>
+                    <a href="/register" class="font-bold hover:text-white/80">Đăng Ký</a>
+                    <span class="text-white/40">|</span>
+                    <a href="/login" class="font-bold hover:text-white/80">Đăng Nhập</a>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Main Search & Cart Header -->
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Shopee Logo -->
+            <a href="/" class="flex items-center space-x-2 text-white">
+                <i class="fa-solid fa-bag-shopping text-4xl"></i>
+                <div class="leading-none">
+                    <span class="text-2xl font-black tracking-tight">Shopee</span>
+                    <span class="text-[10px] block opacity-90 tracking-widest uppercase font-semibold">Vietnam</span>
+                </div>
+            </a>
+
+            <!-- Thanh tìm kiếm kèm Gợi ý lịch sử & Sản phẩm bán chạy (Yêu cầu 10 & 11) -->
+            <div class="flex-1 max-w-2xl mx-8 relative">
+                <form id="searchForm" action="/" method="GET" class="flex bg-white rounded-sm p-1 shadow-md">
+                    <div class="relative flex-1">
+                        <input type="text" id="searchInput" name="q" value="<%= typeof currentKeyword !== 'undefined' ? currentKeyword : '' %>"
+                               placeholder="Shopee bao ship 0Đ - Đăng ký nhận ngay voucher 500k" 
+                               autocomplete="off"
+                               class="w-full px-3 py-2 text-gray-800 text-sm focus:outline-none">
+
+                        <!-- Popup Gợi ý lịch sử tìm kiếm & Xu hướng mua sắm (Yêu cầu 10 & 11) -->
+                        <div id="searchSuggestionBox" class="absolute left-0 right-0 top-full mt-1 bg-white rounded-md shadow-xl border border-gray-200 hidden z-50 text-xs text-gray-700 overflow-hidden">
+                            <!-- Lịch sử tìm kiếm -->
+                            <div id="recentSearchSection" class="p-3 border-b border-gray-100">
+                                <div class="flex justify-between items-center mb-2 text-gray-400 font-bold uppercase text-[10px]">
+                                    <span><i class="fa-solid fa-clock-rotate-left mr-1"></i> Lịch sử tìm kiếm</span>
+                                    <% if (typeof searchHistory !== 'undefined' && searchHistory.length > 0) { %>
+                                        <button type="button" onclick="clearAllSearchHistoryUI(event)" class="text-[10px] text-gray-400 hover:text-red-600 font-normal hover:underline">
+                                            Xóa tất cả
+                                        </button>
+                                    <% } %>
+                                </div>
+                                <div id="recentKeywords" class="flex flex-wrap gap-1.5">
+                                    <% if (typeof searchHistory !== 'undefined' && searchHistory.length > 0) { %>
+                                        <% searchHistory.forEach(kw => { %>
+                                            <span class="inline-flex items-center bg-gray-100 hover:bg-orange-50 text-gray-700 rounded-full px-2.5 py-1 text-xs transition group/tag">
+                                                <a href="/?q=<%= encodeURIComponent(kw) %>" class="hover:text-orange-600 mr-1.5">
+                                                    <%= kw %>
+                                                </a>
+                                                <button type="button" onclick="deleteSearchKeywordUI(event, '<%= kw.replace(/'/g, "\\'") %>')" title="Xóa từ khóa này" class="text-gray-400 hover:text-red-600 text-[10px] font-bold p-0.5 rounded-full hover:bg-gray-200 leading-none">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            </span>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <span class="text-gray-400 italic text-[11px]" id="emptySearchNotice">Chưa có lịch sử tìm kiếm</span>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                            <!-- Gợi ý Tìm Kiếm Trực Tiếp (Live Search Khi Gõ Phím - Yêu cầu 5) -->
+                            <div id="liveSearchContainer" class="p-3 bg-white hidden border-b border-gray-100">
+                                <div class="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-magnifying-glass mr-1 text-orange-500"></i> Sản phẩm phù hợp</span>
+                                    <span id="liveSearchStatus" class="text-[9px] text-gray-400">Đang tìm...</span>
+                                </div>
+                                <div id="liveSearchResults" class="divide-y divide-gray-100 max-h-72 overflow-y-auto"></div>
+                            </div>
+
+                            <!-- Sản phẩm bán chạy / Xu hướng (Yêu cầu 11) -->
+                            <div id="defaultTrendingSection" class="p-3 bg-gray-50/60">
+                                <div class="text-[10px] font-bold text-orange-600 uppercase mb-2 flex items-center">
+                                    <i class="fa-solid fa-fire mr-1 text-red-500 animate-pulse"></i> Sản phẩm bán chạy & Tìm kiếm nhiều nhất
+                                </div>
+                                <div class="space-y-1.5">
+                                    <% if (typeof trendingProducts !== 'undefined' && trendingProducts.length > 0) { %>
+                                        <% trendingProducts.forEach(tp => { %>
+                                            <a href="/product/<%= tp.PRODUCT_ID %>" class="flex items-center space-x-2 p-1 rounded hover:bg-white transition">
+                                                <img src="<%= tp.IMAGE_URL %>" class="w-7 h-7 object-cover rounded">
+                                                <span class="font-medium text-gray-800 flex-1 truncate"><%= tp.PRODUCT_NAME %></span>
+                                                <span class="font-bold text-orange-600"><%= Number(tp.PRICE).toLocaleString('vi-VN') %> đ</span>
+                                            </a>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <a href="/product/1" class="text-gray-600 hover:text-orange-600">Sữa chua ăn Vinamilk Có Đường</a>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="bg-[#fb5533] hover:bg-[#d73211] text-white px-6 rounded-sm text-sm">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </form>
+
+                <!-- Tags gợi ý dưới ô tìm kiếm chuẩn Shopee -->
+                <div class="flex items-center space-x-3 text-[11px] text-white/90 mt-1.5 truncate">
+                    <a href="/?q=Áo thun" class="hover:text-white">Áo thun</a>
+                    <a href="/?q=Dép" class="hover:text-white">Dép</a>
+                    <a href="/?q=Bình giữ nhiệt" class="hover:text-white">Bình giữ nhiệt</a>
+                    <a href="/?q=Ốp lưng iPhone" class="hover:text-white">Ốp lưng iPhone</a>
+                    <a href="/?q=Sữa chua" class="hover:text-white">Sữa chua</a>
+                    <a href="/?q=Tai nghe bluetooth" class="hover:text-white">Tai nghe bluetooth</a>
+                </div>
+            </div>
+
+            <!-- Giỏ Hàng & Icon Bump (Yêu cầu 9) -->
+            <div class="relative">
+                <a href="/cart" id="headerCartBtn" class="flex items-center p-2 text-white hover:opacity-90 relative">
+                    <i class="fa-solid fa-cart-shopping text-2xl"></i>
+                    <span id="headerCartCount" class="absolute -top-1 -right-1 bg-white text-[#ee4d2d] text-xs font-bold rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center border border-[#ee4d2d] shadow">
+                        <%= typeof cartCount !== 'undefined' ? cartCount : 0 %>
+                    </span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Nút Chat nổi góc phải dưới màn hình (Yêu cầu 8 - Khách / Shop / Admin) -->
+    <div id="chatWidget" class="fixed bottom-4 right-4 z-50">
+        <!-- Nút mở chat chuẩn Shopee -->
+        <button onclick="toggleChatWindow()" id="chatOpenBtn" class="bg-[#ee4d2d] hover:bg-[#d73211] text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center space-x-2 font-bold text-sm">
+            <i class="fa-solid fa-comment-dots text-lg"></i>
+            <span>Chat</span>
+            <span class="w-2 h-2 rounded-full bg-green-400 animate-ping"></span>
+        </button>
+
+        <!-- Khung chat popup -->
+        <div id="chatWindow" class="hidden w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col h-[480px]">
+            <!-- Header Chat -->
+            <div class="bg-[#ee4d2d] text-white p-3 flex justify-between items-center shadow">
+                <div class="flex items-center space-x-2.5">
+                    <img src="/images/default-avatar.png" class="w-8 h-8 rounded-full border border-white/40">
+                    <div>
+                        <div class="font-bold text-xs">Shopee Chat Trực Tuyến</div>
+                        <div class="text-[10px] text-white/80">Người bán & Admin sẵn sàng hỗ trợ</div>
+                    </div>
+                </div>
+                <button onclick="toggleChatWindow()" class="text-white hover:text-white/80 text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Danh sách tin nhắn -->
+            <div id="chatMessagesBox" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs bg-gray-50">
+                <div class="text-center text-[10px] text-gray-400 my-1">Bắt đầu trò chuyện với gian hàng</div>
+            </div>
+
+            <!-- Ô nhập tin nhắn -->
+            <form id="chatForm" onsubmit="submitChatMessage(event)" class="p-2 border-t border-gray-200 bg-white flex items-center space-x-1.5">
+                <input type="text" id="chatInputText" placeholder="Nhập nội dung cần hỗ trợ..." required class="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded-full focus:outline-none">
+                <button type="submit" class="bg-[#ee4d2d] text-white w-8 h-8 rounded-full flex items-center justify-center hover:opacity-90">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script tương tác Tìm kiếm, Chat và Giỏ hàng -->
+    <script>
+    // 1. Popup gợi ý tìm kiếm & Live Search khi gõ từng ký tự (Yêu cầu 5)
+    const searchInput = document.getElementById('searchInput');
+    const suggestionBox = document.getElementById('searchSuggestionBox');
+    const liveSearchContainer = document.getElementById('liveSearchContainer');
+    const liveSearchResults = document.getElementById('liveSearchResults');
+    const recentSearchSection = document.getElementById('recentSearchSection');
+    const defaultTrendingSection = document.getElementById('defaultTrendingSection');
+    let searchDebounceTimer = null;
+
+    if (searchInput && suggestionBox) {
+        searchInput.addEventListener('focus', () => {
+            suggestionBox.classList.remove('hidden');
+            if (searchInput.value.trim().length > 0) {
+                performLiveSearch(searchInput.value.trim());
+            }
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            clearTimeout(searchDebounceTimer);
+            if (query.length === 0) {
+                if (liveSearchContainer) liveSearchContainer.classList.add('hidden');
+                if (recentSearchSection) recentSearchSection.classList.remove('hidden');
+                if (defaultTrendingSection) defaultTrendingSection.classList.remove('hidden');
+                return;
+            }
+
+            searchDebounceTimer = setTimeout(() => {
+                performLiveSearch(query);
+            }, 250);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionBox.contains(e.target)) {
+                suggestionBox.classList.add('hidden');
+            }
+        });
+    }
+
+    async function performLiveSearch(query) {
+        if (!liveSearchContainer || !liveSearchResults) return;
+        liveSearchContainer.classList.remove('hidden');
+        if (recentSearchSection) recentSearchSection.classList.add('hidden');
+        if (defaultTrendingSection) defaultTrendingSection.classList.add('hidden');
+        
+        liveSearchResults.innerHTML = '<div class="py-3 text-center text-gray-400 text-xs"><i class="fa-solid fa-spinner fa-spin mr-1 text-[#ee4d2d]"></i> Đang tìm sản phẩm...</div>';
+
+        try {
+            const res = await fetch('/api/search/live?q=' + encodeURIComponent(query));
+            const data = await res.json();
+            if (data.success && data.results && data.results.length > 0) {
+                liveSearchResults.innerHTML = '';
+                data.results.forEach(p => {
+                    const isOutOfStock = Number(p.TOTAL_STOCK || 0) <= 0;
+                    const stockBadge = isOutOfStock
+                        ? '<span class="text-[10px] text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded font-bold">Hết hàng</span>'
+                        : '<span class="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium">Còn ' + Number(p.TOTAL_STOCK).toLocaleString('vi-VN') + ' sp</span>';
+
+                    const item = document.createElement('a');
+                    item.href = '/product/' + p.PRODUCT_ID;
+                    item.className = 'flex items-center space-x-3 py-2 hover:bg-orange-50/60 px-1 rounded transition group';
+                    item.innerHTML = `
+                        <img src="${p.IMAGE_URL}" class="w-10 h-10 object-cover rounded border border-gray-100 shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-gray-900 truncate group-hover:text-[#ee4d2d] transition text-xs">${p.PRODUCT_NAME}</div>
+                            <div class="flex items-center space-x-2 text-[10px] text-gray-400 mt-0.5">
+                                <span><i class="fa-solid fa-store mr-0.5"></i>${p.SHOP_NAME}</span>
+                                <span>•</span>
+                                <span>Đã bán ${Number(p.SOLD_COUNT || 0).toLocaleString('vi-VN')}</span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="font-bold text-[#ee4d2d] text-xs">₫${Number(p.MIN_PRICE || 0).toLocaleString('vi-VN')}</div>
+                            <div class="mt-0.5">${stockBadge}</div>
+                        </div>
+                    `;
+                    liveSearchResults.appendChild(item);
+                });
+            } else {
+                liveSearchResults.innerHTML = '<div class="py-4 text-center text-gray-400 text-xs"><i class="fa-regular fa-face-frown mr-1"></i> Không tìm thấy sản phẩm nào phù hợp</div>';
+            }
+        } catch(err) {
+            liveSearchResults.innerHTML = '<div class="py-2 text-center text-red-500 text-xs">Lỗi tìm kiếm: ' + err.message + '</div>';
+        }
+    }
+
+    async function deleteSearchKeywordUI(e, keyword) {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            await fetch('/api/search-history/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword })
+            });
+            // Xóa tag trên giao diện ngay lập tức
+            const tag = e.target.closest('span');
+            if (tag) tag.remove();
+            
+            const remaining = document.querySelectorAll('#recentKeywords span');
+            if (remaining.length === 0) {
+                document.getElementById('recentKeywords').innerHTML = '<span class="text-gray-400 italic text-[11px]">Chưa có lịch sử tìm kiếm</span>';
+            }
+        } catch(err) {
+            console.error('Lỗi xóa từ khóa:', err);
+        }
+    }
+
+    async function clearAllSearchHistoryUI(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử tìm kiếm?')) return;
+        try {
+            await fetch('/api/search-history/clear-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            document.getElementById('recentKeywords').innerHTML = '<span class="text-gray-400 italic text-[11px]">Chưa có lịch sử tìm kiếm</span>';
+            e.target.remove();
+        } catch(err) {
+            console.error('Lỗi xóa tất cả:', err);
+        }
+    }
+
+    // 2. Chat widget
+    let chatOpened = false;
+    function toggleChatWindow() {
+        const win = document.getElementById('chatWindow');
+        const btn = document.getElementById('chatOpenBtn');
+        if (win.classList.contains('hidden')) {
+            win.classList.remove('hidden');
+            btn.classList.add('hidden');
+            chatOpened = true;
+            loadChatMessages();
+        } else {
+            win.classList.add('hidden');
+            btn.classList.remove('hidden');
+            chatOpened = false;
+        }
+    }
+
+    async function loadChatMessages() {
+        try {
+            const res = await fetch('/api/chat?shopId=1');
+            const data = await res.json();
+            if (data.success) {
+                const box = document.getElementById('chatMessagesBox');
+                box.innerHTML = '';
+                data.messages.forEach(m => {
+                    const isMe = m.SENDER_ROLE === '<%= currentUser ? currentUser.roleName : "GUEST" %>' && m.IS_AUTO_REPLY === 0;
+                    const bubble = document.createElement('div');
+                    bubble.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+                    bubble.innerHTML = `
+                        <div class="text-[9px] text-gray-400 mb-0.5">${m.SENDER_NAME} (${m.MSG_TIME || ''})</div>
+                        <div class="p-2.5 rounded-2xl max-w-[80%] ${isMe ? 'bg-[#ee4d2d] text-white rounded-br-none' : (m.IS_AUTO_REPLY === 1 ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none')} shadow-sm">
+                            ${m.MESSAGE_TEXT}
+                        </div>
+                    `;
+                    box.appendChild(bubble);
+                });
+                box.scrollTop = box.scrollHeight;
+            }
+        } catch(e) {}
+    }
+
+    async function submitChatMessage(e) {
+        e.preventDefault();
+        const input = document.getElementById('chatInputText');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+
+        await fetch('/api/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shopId: 1, messageText: text })
+        });
+        loadChatMessages();
+    }
+
+    // 3. Xác nhận trước khi đăng xuất (Yêu cầu 5)
+    function confirmLogout() {
+        if (confirm('Bạn có chắc chắn muốn đăng xuất tài khoản?')) {
+            window.location.href = '/logout';
+        }
+    }
+    </script>
+
+    <main class="flex-1">

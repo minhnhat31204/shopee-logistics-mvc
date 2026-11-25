@@ -1,0 +1,390 @@
+<%- include('shop-layout-top') %>
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-xl font-bold text-gray-900">Sản Phẩm Gian Hàng</h2>
+        <p class="text-xs text-gray-500">Quản lý các mặt hàng do gian hàng <%= user.shopName %> đăng bán.</p>
+    </div>
+    <div class="flex items-center space-x-2">
+        <button onclick="document.getElementById('modalShopCreateProduct').classList.remove('hidden')" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow flex items-center">
+            <i class="fa-solid fa-plus mr-1.5"></i> Thêm Sản Phẩm Mới
+        </button>
+        <a href="/shop/variants" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow flex items-center">
+            <i class="fa-solid fa-tags mr-1.5"></i> Xem Danh Sách Biến Thể SKU
+        </a>
+    </div>
+</div>
+
+<% if (msg) { %>
+    <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center">
+        <i class="fa-solid fa-circle-check mr-2"></i> <%= msg %>
+    </div>
+<% } %>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    
+<!-- Thanh Tìm Kiếm Nhanh & Làm Mới (Yêu cầu 6) -->
+<div class="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3">
+    <div class="relative flex-1 max-w-md">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+        <input type="text" id="filterInput_shopProductsTable" onkeyup="filterTableRows('shopProductsTable', this.value)" placeholder="Tìm theo tên sản phẩm, ngành hàng, giá..." class="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 shadow-sm">
+        <button type="button" onclick="clearTableFilter('shopProductsTable')" title="Xóa từ khóa & Làm mới" class="absolute right-2.5 top-2 text-gray-400 hover:text-red-600 text-xs">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    <div class="flex items-center space-x-2">
+        <span id="filterCount_shopProductsTable" class="text-[11px] text-gray-400"></span>
+        <button type="button" onclick="clearTableFilter('shopProductsTable')" class="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold shadow-sm flex items-center">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Làm mới
+        </button>
+    </div>
+</div>
+
+<div class="overflow-x-auto">
+        <table id="shopProductsTable" class="w-full text-left text-xs text-gray-600">
+            <thead class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[11px]">
+                <tr>
+                    <th class="p-3">ID</th>
+                    <th class="p-3">Tên Sản Phẩm</th>
+                    <th class="p-3">Ngành Hàng</th>
+                    <th class="p-3">Số Biến Thể SKU</th>
+                    <th class="p-3">Giá Bán</th>
+                    <th class="p-3">Trạng Thái</th>
+                    <th class="p-3 text-right">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% products.forEach(p => { %>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-mono font-bold text-gray-500">#<%= p.PRODUCT_ID %></td>
+                        <td class="p-3 font-bold text-gray-900 text-sm"><%= p.PRODUCT_NAME %></td>
+                        <td class="p-3 text-purple-700 font-medium"><%= p.CATEGORY_NAME %></td>
+                        <td class="p-3 font-semibold text-gray-800"><%= p.TOTAL_VARIANTS %> SKU</td>
+                        <td class="p-3 font-bold text-orange-600">
+                            <%= p.MIN_PRICE ? Number(p.MIN_PRICE).toLocaleString('vi-VN') + ' đ' : 'Chưa định giá' %>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                                <%= p.STATUS %>
+                            </span>
+                        </td>
+                        <td class="p-3 text-right space-x-1 whitespace-nowrap">
+                            <a href="/shop/variants?prodId=<%= p.PRODUCT_ID %>" class="px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 rounded text-[11px] font-semibold inline-flex items-center">
+                                <i class="fa-solid fa-list-check mr-1"></i> Biến Thể (<%= p.TOTAL_VARIANTS %>)
+                            </a>
+                            <button onclick="openShopVariantModal(<%= p.PRODUCT_ID %>, '<%= p.PRODUCT_NAME.replace(/'/g, "\\'") %>', <%= p.CATEGORY_ID %>)" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-semibold">
+                                <i class="fa-solid fa-plus mr-1"></i> Thêm SKU
+                            </button>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL 1: SHOPKEEPER TẠO SẢN PHẨM MỚI (TÁCH RIÊNG) -->
+<div id="modalShopCreateProduct" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+        <button onclick="document.getElementById('modalShopCreateProduct').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-1 flex items-center">
+            <i class="fa-solid fa-box-open text-purple-600 mr-2"></i> Khởi Tạo Sản Phẩm Mới
+        </h3>
+        <p class="text-xs text-gray-400 mb-4">Tạo sản phẩm trước, sau đó tạo biến thể SKU phân loại hàng riêng biệt.</p>
+
+        <form action="/shop/products/create" method="POST" class="space-y-3 text-xs">
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">Tên Sản Phẩm *</label>
+                <input type="text" name="productName" placeholder="VD: Sữa chua ăn nha đam Vinamilk" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Danh Mục Cha (Cấp 1) *</label>
+                    <select id="shopNewProdParentCat" name="parentCategoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 bg-white" onchange="onShopNewProdParentChanged()">
+                        <option value="">-- Chọn danh mục cha --</option>
+                        <% categories.filter(c => !c.PARENT_CATEGORY_ID).forEach(c => { %>
+                            <option value="<%= c.CATEGORY_ID %>"><%= c.CATEGORY_NAME %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Danh Mục Con (Cấp 2) *</label>
+                    <select id="shopNewProdChildCat" name="subCategoryId" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition">
+                        <option value="">-- Chọn danh mục cha trước --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-3 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalShopCreateProduct').classList.add('hidden')" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold shadow">Khởi Tạo Sản Phẩm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 2: SHOPKEEPER TẠO BIẾN THỂ SKU (TUẦN TỰ) -->
+<div id="modalShopCreateVariant" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+        <button onclick="document.getElementById('modalShopCreateVariant').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-lg">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h3 class="text-base font-bold text-gray-900 mb-1 flex items-center">
+            <i class="fa-solid fa-tags text-indigo-600 mr-2"></i> Thêm Biến Thể SKU Cho Sản Phẩm
+        </h3>
+        <p class="text-xs text-gray-400 mb-4">Quy trình lần lượt: Chọn DM Cha ➔ Chọn DM Con ➔ Chọn Sản phẩm ➔ Điền SKU.</p>
+
+        <form action="/shop/products/create-variant" method="POST" class="space-y-3.5 text-xs">
+            <div class="grid grid-cols-3 gap-2">
+                <!-- Bước 1: Chọn Danh mục cha -->
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">1</span>
+                        Danh Mục Cha *
+                    </label>
+                    <select id="shopVarParentCatSelect" required class="w-full px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 bg-white" onchange="onShopVarParentCatChanged()">
+                        <option value="">-- Chọn DM Cha --</option>
+                        <% categories.filter(c => !c.PARENT_CATEGORY_ID).forEach(c => { %>
+                            <option value="<%= c.CATEGORY_ID %>"><%= c.CATEGORY_NAME %></option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <!-- Bước 2: Chọn Danh mục con -->
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">2</span>
+                        Danh Mục Con *
+                    </label>
+                    <select id="shopVarCatSelect" required disabled class="w-full px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition" onchange="onShopVarCategoryChanged()">
+                        <option value="">-- Trước tiên chọn DM Cha --</option>
+                    </select>
+                </div>
+
+                <!-- Bước 3: Chọn Sản phẩm -->
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1 flex items-center">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">3</span>
+                        Sản Phẩm *
+                    </label>
+                    <select name="productId" id="shopVarProdSelect" required disabled class="w-full px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 transition">
+                        <option value="">-- Chọn DM Con trước --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
+                <p class="font-bold text-indigo-900 text-xs flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-indigo-600 text-white inline-flex items-center justify-center text-[9px] font-bold mr-1">4</span>
+                    Thông tin phân loại hàng (SKU)
+                </p>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Mã SKU Duy Nhất *</label>
+                        <input type="text" name="sku" placeholder="VD: VNM-ND-100G" required class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono uppercase focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Tên Quy Cách / Biến Thể *</label>
+                        <input type="text" name="variantName" placeholder="VD: Lốc 4 hộp x 100g" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Đơn Giá Bán (VNĐ) *</label>
+                        <input type="number" name="price" placeholder="32000" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">URL Hình Ảnh Đại Diện SKU</label>
+                        <input type="url" name="imageUrl" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('modalShopCreateVariant').classList.add('hidden')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold">Hủy</button>
+                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow">Thêm Biến Thể SKU</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<%- include('shop-layout-bottom') %>
+
+<script>
+function filterTableRows(tableId, query) {
+    query = (query || '').toLowerCase().trim();
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+    rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        if (text.includes(query)) {
+            r.style.display = '';
+            visibleCount++;
+        } else {
+            r.style.display = 'none';
+        }
+    });
+    const countEl = document.getElementById('filterCount_' + tableId);
+    if (countEl) {
+        countEl.innerText = query ? ('Hiển thị: ' + visibleCount + '/' + rows.length) : '';
+    }
+}
+
+function clearTableFilter(tableId) {
+    const input = document.getElementById('filterInput_' + tableId);
+    if (input) input.value = '';
+    filterTableRows(tableId, '');
+}
+</script>
+
+<script>
+const shopAllCategories = <%- JSON.stringify(typeof categories !== 'undefined' ? categories : []) %>;
+const shopProductsList = <%- JSON.stringify(typeof products !== 'undefined' ? products : []) %>;
+
+// 1. Khi chọn Danh mục cha trong Modal 1 (Khởi Tạo Sản Phẩm)
+function onShopNewProdParentChanged() {
+    const parentSelect = document.getElementById('shopNewProdParentCat');
+    const childSelect = document.getElementById('shopNewProdChildCat');
+    if (!parentSelect || !childSelect) return;
+
+    const parentId = Number(parentSelect.value);
+    childSelect.innerHTML = '';
+
+    if (!parentId) {
+        childSelect.disabled = true;
+        childSelect.classList.add('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn danh mục cha trước --</option>';
+        return;
+    }
+
+    const subCats = shopAllCategories.filter(c => Number(c.PARENT_CATEGORY_ID) === parentId);
+    if (subCats.length > 0) {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn danh mục con (' + subCats.length + ') --</option>';
+        subCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.CATEGORY_ID;
+            opt.textContent = c.CATEGORY_NAME;
+            childSelect.appendChild(opt);
+        });
+    } else {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        const opt = document.createElement('option');
+        opt.value = parentId;
+        opt.textContent = 'Mặc định (Không có danh mục con)';
+        childSelect.appendChild(opt);
+    }
+}
+
+// 2. Khi chọn Danh mục cha trong Modal 2 (Thêm Biến Thể SKU)
+function onShopVarParentCatChanged() {
+    const parentSelect = document.getElementById('shopVarParentCatSelect');
+    const childSelect = document.getElementById('shopVarCatSelect');
+    const prodSelect = document.getElementById('shopVarProdSelect');
+    if (!parentSelect || !childSelect) return;
+
+    const parentId = Number(parentSelect.value);
+    childSelect.innerHTML = '';
+    if (prodSelect) {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn DM Con trước --</option>';
+    }
+
+    if (!parentId) {
+        childSelect.disabled = true;
+        childSelect.classList.add('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Trước tiên chọn DM Cha --</option>';
+        return;
+    }
+
+    const subCats = shopAllCategories.filter(c => Number(c.PARENT_CATEGORY_ID) === parentId);
+    if (subCats.length > 0) {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        childSelect.innerHTML = '<option value="">-- Chọn DM Con (' + subCats.length + ') --</option>';
+        subCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.CATEGORY_ID;
+            opt.textContent = c.CATEGORY_NAME;
+            childSelect.appendChild(opt);
+        });
+    } else {
+        childSelect.disabled = false;
+        childSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        const opt = document.createElement('option');
+        opt.value = parentId;
+        opt.textContent = 'Chính danh mục này';
+        childSelect.appendChild(opt);
+        onShopVarCategoryChanged();
+    }
+}
+
+// 3. Khi chọn Danh mục con trong Modal 2 ➔ Lọc Sản phẩm
+function onShopVarCategoryChanged() {
+    const catSelect = document.getElementById('shopVarCatSelect');
+    const prodSelect = document.getElementById('shopVarProdSelect');
+    if (!catSelect || !prodSelect) return;
+
+    const catId = Number(catSelect.value);
+    prodSelect.innerHTML = '';
+
+    if (!catId) {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn danh mục trước --</option>';
+        return;
+    }
+
+    const matchedProds = shopProductsList.filter(p => Number(p.CATEGORY_ID) === catId);
+    if (matchedProds.length > 0) {
+        prodSelect.disabled = false;
+        prodSelect.classList.remove('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">-- Chọn sản phẩm (' + matchedProds.length + ' sp) --</option>';
+        matchedProds.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.PRODUCT_ID;
+            opt.textContent = '#' + p.PRODUCT_ID + ' - ' + p.PRODUCT_NAME;
+            prodSelect.appendChild(opt);
+        });
+    } else {
+        prodSelect.disabled = true;
+        prodSelect.classList.add('bg-gray-50', 'text-gray-500');
+        prodSelect.innerHTML = '<option value="">Không có sản phẩm nào trong danh mục này</option>';
+    }
+}
+
+function openShopVariantModal(prodId, prodName, catId) {
+    const modal = document.getElementById('modalShopCreateVariant');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    if (catId) {
+        const currentCat = shopAllCategories.find(c => Number(c.CATEGORY_ID) === Number(catId));
+        const parentId = currentCat && currentCat.PARENT_CATEGORY_ID ? currentCat.PARENT_CATEGORY_ID : catId;
+        const parentSelect = document.getElementById('shopVarParentCatSelect');
+        if (parentSelect) {
+            parentSelect.value = parentId;
+            onShopVarParentCatChanged();
+        }
+        const childSelect = document.getElementById('shopVarCatSelect');
+        if (childSelect) {
+            childSelect.value = catId;
+            onShopVarCategoryChanged();
+        }
+    }
+    const prodSelect = document.getElementById('shopVarProdSelect');
+    if (prodSelect && prodId) {
+        prodSelect.value = prodId;
+    }
+}
+</script>
